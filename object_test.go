@@ -145,3 +145,71 @@ func TestSurrogateError(t *testing.T) {
 	}
 
 }
+
+func TestSurrogateRequest(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	request, err := NewRequest("id", "", "Join", "/", "hello", "world")
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	result, err := s.CallRequest(request)
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, result, 1); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
+		t.Error()
+	}
+}
+
+func TestSurrogateRequestWithWrongTypes(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	request, err := NewRequest("id", "", "Join", "/", "hello", 10)
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	_, err = s.CallRequest(request)
+	if ok := assert.EqualError(t, err, "invalid argument type [3] expecting string"); !ok {
+		t.Fatal()
+	}
+}
+
+func TestSurrogateRequestEncoded(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	request, err := NewRequest("id", "", "Join", "/", "hello", "world")
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	data, err := request.Encode()
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	request, err = LoadRequest(data)
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	result, err := s.CallRequest(request)
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, result, 1); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
+		t.Error()
+	}
+}

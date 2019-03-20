@@ -133,7 +133,7 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 		expect := methodType.In(i)
 		value, err := request.Argument(i, expect)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid argument type [%d] expecting %s got", i, expect)
 		}
 
 		values = append(values, value)
@@ -144,7 +144,7 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 		for i := expected; i < request.NumArguments(); i++ {
 			value, err := request.Argument(i, expect)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid argument type [%d] expecting %s", i+expected, expect)
 			}
 
 			values = append(values, value)
