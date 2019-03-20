@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Callback defines a callback method signature for responses
-type Callback func(response *Response, err error)
+type Callback func(response *Response)
 
 // BaseServer implements the basic server functionality
 // In case you are building your own zbus server
@@ -35,7 +37,7 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 	return nil
 }
 
-func (s *BaseServer) call(request *Request) (*Response, error) {
+func (s *BaseServer) call(request *Request) (Return, error) {
 	s.m.RLock()
 	defer s.m.RUnlock()
 
@@ -45,12 +47,24 @@ func (s *BaseServer) call(request *Request) (*Response, error) {
 		return nil, fmt.Errorf("unknown object")
 	}
 
-	result, err := surrogate.CallRequest(request)
+	return surrogate.CallRequest(request)
+	// var response *Response
+	// if err != nil {
+	// 	response = NewResponse(request.ID, err.Error())
+	// 	return nil, err
+	// }
+
+	// return request.Response(result...)
+}
+
+func (s *BaseServer) process(request *Request) (*Response, error) {
+	ret, err := s.call(request)
+	var msg string
 	if err != nil {
-		return nil, err
+		msg = err.Error()
 	}
 
-	return request.Response(result...)
+	return NewResponse(request.ID, msg, ret...)
 }
 
 func (s *BaseServer) worker(ctx context.Context, ch <-chan *Request, cb Callback) {
@@ -61,7 +75,14 @@ func (s *BaseServer) worker(ctx context.Context, ch <-chan *Request, cb Callback
 				//channel has been closed
 				break
 			}
-			cb(s.call(request))
+
+			response, err := s.process(request)
+			if err != nil {
+				log.WithError(err).Error("failed to create response object")
+				continue
+			}
+
+			cb(response)
 		case <-ctx.Done():
 			break
 		}

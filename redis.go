@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -54,6 +56,7 @@ func newRedisPool(address string) (*redis.Pool, error) {
 // RedisServer implementation for Redis
 type RedisServer struct {
 	BaseServer
+	queue   string
 	pool    *redis.Pool
 	workers uint
 }
@@ -76,15 +79,27 @@ func NewRedisServer(queue, address string, workers uint) (Server, error) {
 		return nil, fmt.Errorf("could not establish connection: %s", err)
 	}
 
-	return &RedisServer{pool: pool, workers: workers}, nil
+	return &RedisServer{queue: queue, pool: pool, workers: workers}, nil
 }
 
-func (s *RedisServer) cb(response *Response, err error) {
-
+func (s *RedisServer) cb(response *Response) {
+	log.Infof("response: %v", response)
 }
 
 func (s *RedisServer) getNext() (*Request, error) {
-	return nil, nil
+	con := s.pool.Get()
+	defer con.Close()
+
+	payload, err := redis.ByteSlices(con.Do("BLPOP", s.queue, 10))
+	if err != nil {
+		return nil, err
+	}
+
+	if payload == nil || len(payload) < 2 {
+		return nil, redis.ErrNil
+	}
+
+	return LoadRequest(payload[1])
 }
 
 // Run starts the ZBus server
@@ -97,8 +112,10 @@ func (s *RedisServer) Run(ctx context.Context) error {
 			return ctx.Err()
 		default:
 		}
-
-		if err != nil {
+		if err == redis.ErrNil {
+			continue
+		} else if err != nil {
+			log.WithError(err).Error("failed to get next job. Retrying in 1 second")
 			<-time.After(1 * time.Second)
 			continue
 		}

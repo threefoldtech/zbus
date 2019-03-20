@@ -97,16 +97,22 @@ func (m *Request) Encode() ([]byte, error) {
 }
 
 // Response object
-type Response Message
+type Response struct {
+	Message
+	// Error hear will carry any protocol error
+	Error string
+}
 
-// Response creates a response object with given values
-func (m *Request) Response(values ...interface{}) (resp *Response, err error) {
-	msg, err := NewMessage(m.ID, values...)
+// NewResponse creates a response with id, and errMsg and return values
+// note that errMsg is the protocol level errors (no such method, unknown object, etc...)
+// errors returned by the service method itself should be encapsulated in the values
+func NewResponse(id, errMsg string, values ...interface{}) (*Response, error) {
+	msg, err := NewMessage(id, values...)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	response := Response(msg)
-	return &response, nil
+
+	return &Response{msg, errMsg}, nil
 }
 
 // Encode converts a response into byte data suitable to send over the wire
