@@ -49,16 +49,16 @@ func TestRequest(t *testing.T) {
 		return o
 	}
 
-	if ok := assert.Equal(t, "arg1", must(loaded.Argument(0, reflect.TypeOf("")))); !ok {
+	if ok := assert.Equal(t, "arg1", must(loaded.Value(0, reflect.TypeOf("")))); !ok {
 		t.Error()
 	}
 
-	intArg := must(loaded.Argument(1, reflect.TypeOf(0)))
+	intArg := must(loaded.Value(1, reflect.TypeOf(0)))
 	if ok := assert.Equal(t, 2, intArg); !ok {
 		t.Error()
 	}
 
-	structArg := must(loaded.Argument(2, reflect.TypeOf(T{})))
+	structArg := must(loaded.Value(2, reflect.TypeOf(T{})))
 	if ok := assert.Equal(t, arg, structArg); !ok {
 		t.Error()
 	}

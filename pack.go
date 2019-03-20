@@ -30,18 +30,34 @@ func NewMessage(id string, args ...interface{}) (msg Message, err error) {
 	return Message{ID: id, Arguments: data}, nil
 }
 
-// Argument loads an argument into an object of the given type `t`
-func (m *Message) Argument(i int, t reflect.Type) (interface{}, error) {
-	if i >= len(m.Arguments) {
-		return nil, fmt.Errorf("index out of range")
-	}
-
-	value := reflect.New(t)
-	element := value.Interface()
-	if err := msgpack.Unmarshal(m.Arguments[i], element); err != nil {
+// Value gets the concrete value stored at argument index i
+func (m *Message) Value(i int, t reflect.Type) (interface{}, error) {
+	arg, err := m.Argument(i, t)
+	if err != nil {
 		return nil, err
 	}
-	return value.Elem().Interface(), nil
+
+	return arg.Interface(), nil
+}
+
+// Argument loads an argument into a reflect.Value of type t
+func (m *Message) Argument(i int, t reflect.Type) (value reflect.Value, err error) {
+	if i >= len(m.Arguments) {
+		return value, fmt.Errorf("index out of range")
+	}
+
+	value = reflect.New(t)
+	element := value.Interface()
+	if err := msgpack.Unmarshal(m.Arguments[i], element); err != nil {
+		return value, err
+	}
+
+	return value.Elem(), nil
+}
+
+// NumArguments returns the length of the argument list
+func (m *Message) NumArguments() int {
+	return len(m.Arguments)
 }
 
 // Request is carrier of byte data. It does not assume any encoding types used for individual objects
@@ -76,4 +92,29 @@ func LoadRequest(data []byte) (*Request, error) {
 // Encode will always use msgpack.
 func (m *Request) Encode() ([]byte, error) {
 	return msgpack.Marshal(m)
+}
+
+// Response object
+type Response Message
+
+// Response creates a response object with given values
+func (m *Request) Response(values ...interface{}) (resp Response, err error) {
+	msg, err := NewMessage(m.ID, values...)
+	if err != nil {
+		return resp, err
+	}
+
+	return Response(msg), nil
+}
+
+// Encode converts a response into byte data suitable to send over the wire
+// Encode will always use msgpack.
+func (m *Response) Encode() ([]byte, error) {
+	return msgpack.Marshal(m)
+}
+
+// LoadResponse loads response from data
+func LoadResponse(data []byte) (*Response, error) {
+	var response Response
+	return &response, msgpack.Unmarshal(data, &response)
 }

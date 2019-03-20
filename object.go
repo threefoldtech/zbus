@@ -35,23 +35,44 @@ func NewSurrogate(object interface{}) *Surrogate {
 	return &Surrogate{reflect.ValueOf(object)}
 }
 
-// Call dynamically call a method
-func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
-	method := s.value.MethodByName(name)
+func (s *Surrogate) getMethod(name string) (method reflect.Value, err error) {
+	method = s.value.MethodByName(name)
 	if method.Kind() != reflect.Func {
-		return nil, fmt.Errorf("not a function")
+		return method, fmt.Errorf("not a function")
 	}
-	//validating arguments
-	methodType := method.Type()
 
-	expected := methodType.NumIn()
-	//	fmt.Println("expected", expected)
-	if methodType.IsVariadic() {
+	return method, nil
+}
+
+// isValid validate the method number of arguments
+func (s *Surrogate) isValid(method reflect.Type, args int) error {
+	expected := method.NumIn()
+	if method.IsVariadic() {
 		expected--
 	}
 
-	if len(args) < expected || !methodType.IsVariadic() && len(args) > expected {
-		return nil, fmt.Errorf("invalid number of arguments expecting %d got %d", expected, len(args))
+	if args < expected || !method.IsVariadic() && args > expected {
+		return fmt.Errorf("invalid number of arguments expecting %d got %d", expected, args)
+	}
+	return nil
+}
+
+// Call dynamically call a method
+func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
+	method, err := s.getMethod(name)
+	if err != nil {
+		return nil, err
+	}
+
+	methodType := method.Type()
+	if err := s.isValid(methodType, len(args)); err != nil {
+		return nil, err
+	}
+
+	expected := methodType.NumIn()
+
+	if methodType.IsVariadic() {
+		expected--
 	}
 
 	values := make([]reflect.Value, 0, len(args))
@@ -77,6 +98,58 @@ func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
 
 			values = append(values, reflect.ValueOf(arg))
 		}
+	}
+
+	results := method.Call(values)
+	ret := make(Return, 0, len(results))
+
+	for _, res := range results {
+		ret = append(ret, res.Interface())
+	}
+
+	return ret, nil
+}
+
+// CallRequest calls a method defined by request
+func (s *Surrogate) CallRequest(request *Request) (Return, error) {
+	method, err := s.getMethod(request.Method)
+	if err != nil {
+		return nil, err
+	}
+
+	methodType := method.Type()
+	if err := s.isValid(methodType, request.NumArguments()); err != nil {
+		return nil, err
+	}
+
+	expected := methodType.NumIn()
+
+	if methodType.IsVariadic() {
+		expected--
+	}
+
+	values := make([]reflect.Value, 0, len(request.Arguments))
+	for i := 0; i < expected; i++ {
+		expect := methodType.In(i)
+		value, err := request.Argument(i, expect)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, value)
+	}
+
+	if methodType.IsVariadic() {
+		expect := methodType.In(methodType.NumIn() - 1).Elem()
+		for i := expected; i < request.NumArguments(); i++ {
+			value, err := request.Argument(i, expect)
+			if err != nil {
+				return nil, err
+			}
+
+			values = append(values, value)
+		}
+
 	}
 
 	results := method.Call(values)
