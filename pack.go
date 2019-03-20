@@ -63,12 +63,13 @@ func (m *Message) NumArguments() int {
 // Request is carrier of byte data. It does not assume any encoding types used for individual objects
 type Request struct {
 	Message
-	Object string
-	Method string
+	Object  ObjectID
+	ReplyTo string
+	Method  string
 }
 
 // NewRequest creates a message that carries the given values
-func NewRequest(id, object, method string, args ...interface{}) (*Request, error) {
+func NewRequest(id, replyTo string, object ObjectID, method string, args ...interface{}) (*Request, error) {
 	base, err := NewMessage(id, args...)
 
 	if err != nil {
@@ -78,6 +79,7 @@ func NewRequest(id, object, method string, args ...interface{}) (*Request, error
 	return &Request{
 		Message: base,
 		Object:  object,
+		ReplyTo: replyTo,
 		Method:  method,
 	}, nil
 }
@@ -98,13 +100,13 @@ func (m *Request) Encode() ([]byte, error) {
 type Response Message
 
 // Response creates a response object with given values
-func (m *Request) Response(values ...interface{}) (resp Response, err error) {
+func (m *Request) Response(values ...interface{}) (resp *Response, err error) {
 	msg, err := NewMessage(m.ID, values...)
 	if err != nil {
 		return resp, err
 	}
-
-	return Response(msg), nil
+	response := Response(msg)
+	return &response, nil
 }
 
 // Encode converts a response into byte data suitable to send over the wire

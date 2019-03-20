@@ -149,7 +149,7 @@ func TestSurrogateError(t *testing.T) {
 func TestSurrogateRequest(t *testing.T) {
 	s := NewSurrogate(&T{"my-name"})
 
-	request, err := NewRequest("id", "", "Join", "/", "hello", "world")
+	request, err := NewRequest("id", "", ObjectID{}, "Join", "/", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
@@ -171,7 +171,7 @@ func TestSurrogateRequest(t *testing.T) {
 func TestSurrogateRequestWithWrongTypes(t *testing.T) {
 	s := NewSurrogate(&T{"my-name"})
 
-	request, err := NewRequest("id", "", "Join", "/", "hello", 10)
+	request, err := NewRequest("id", "", ObjectID{}, "Join", "/", "hello", 10)
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
@@ -185,7 +185,7 @@ func TestSurrogateRequestWithWrongTypes(t *testing.T) {
 func TestSurrogateRequestEncoded(t *testing.T) {
 	s := NewSurrogate(&T{"my-name"})
 
-	request, err := NewRequest("id", "", "Join", "/", "hello", "world")
+	request, err := NewRequest("id", "", ObjectID{}, "Join", "/", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}

@@ -14,7 +14,8 @@ func TestRequest(t *testing.T) {
 	}
 
 	arg := T{"Azmy", 36}
-	request, err := NewRequest("my-id", "object", "DoSomething", "arg1", 2, arg)
+	objID := ObjectID{"object", "1.0"}
+	request, err := NewRequest("my-id", "", objID, "DoSomething", "arg1", 2, arg)
 
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
