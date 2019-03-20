@@ -20,6 +20,10 @@ func NewMessage(id string, args ...interface{}) (msg Message, err error) {
 	// receiver end.
 	data := make([][]byte, 0, len(args))
 	for _, arg := range args {
+		if o, ok := arg.(error); ok {
+			arg = RemoteError{o.Error()}
+		}
+
 		bytes, err := msgpack.Marshal(arg)
 		if err != nil {
 			return msg, err

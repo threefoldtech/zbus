@@ -9,7 +9,7 @@ import (
 )
 
 // Callback defines a callback method signature for responses
-type Callback func(response *Response)
+type Callback func(request *Request, response *Response)
 
 // BaseServer implements the basic server functionality
 // In case you are building your own zbus server
@@ -48,13 +48,6 @@ func (s *BaseServer) call(request *Request) (Return, error) {
 	}
 
 	return surrogate.CallRequest(request)
-	// var response *Response
-	// if err != nil {
-	// 	response = NewResponse(request.ID, err.Error())
-	// 	return nil, err
-	// }
-
-	// return request.Response(result...)
 }
 
 func (s *BaseServer) process(request *Request) (*Response, error) {
@@ -82,7 +75,7 @@ func (s *BaseServer) worker(ctx context.Context, ch <-chan *Request, cb Callback
 				continue
 			}
 
-			cb(response)
+			cb(request, response)
 		case <-ctx.Done():
 			break
 		}

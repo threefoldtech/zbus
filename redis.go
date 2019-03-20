@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/google/uuid"
+
 	log "github.com/sirupsen/logrus"
 
 	"github.com/garyburd/redigo/redis"
@@ -82,8 +84,17 @@ func NewRedisServer(queue, address string, workers uint) (Server, error) {
 	return &RedisServer{queue: queue, pool: pool, workers: workers}, nil
 }
 
-func (s *RedisServer) cb(response *Response) {
-	log.Infof("response: %v", response)
+func (s *RedisServer) cb(request *Request, response *Response) {
+	con := s.pool.Get()
+	defer con.Close()
+	payload, err := response.Encode()
+	if err != nil {
+		log.WithError(err).Error("failed to encode response")
+	}
+
+	if err := con.Send("RPUSH", request.ReplyTo, payload); err != nil {
+		log.WithError(err).Error("failed to send response")
+	}
 }
 
 func (s *RedisServer) getNext() ([]byte, error) {
@@ -132,4 +143,68 @@ func (s *RedisServer) Run(ctx context.Context) error {
 		case ch <- request:
 		}
 	}
+}
+
+// RedisClient is client implementation for redis broker
+type RedisClient struct {
+	pool *redis.Pool
+}
+
+// NewRedisClient creates a new redis client
+func NewRedisClient(address string) (Client, error) {
+	pool, err := newRedisPool(address)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RedisClient{pool}, nil
+}
+
+// Request makes a request to object.Method hosted by module. A module name is the queue name used in the server part.
+func (c *RedisClient) Request(module string, object ObjectID, method string, args ...interface{}) (*Response, error) {
+	id := uuid.New().String()
+	request, err := NewRequest(id, id, object, method, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	payload, err := request.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	con := c.pool.Get()
+	defer con.Close()
+
+	if err := con.Send("RPUSH", module, payload); err != nil {
+		return nil, err
+	}
+
+	// wait for response
+	return c.getResponse(con, id)
+}
+
+func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) {
+	//TODO: a timeout or an exit strategy is required here in case
+	//the response never came back
+
+	payload, err := redis.ByteSlices(con.Do("BLPOP", id, 0))
+	if err != nil {
+		return nil, err
+	}
+
+	if payload == nil || len(payload) < 2 {
+		return nil, redis.ErrNil
+	}
+
+	response, err := LoadResponse(payload[1])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Error) != 0 {
+		return nil, fmt.Errorf(response.Error)
+	}
+
+	return response, nil
 }
