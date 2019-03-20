@@ -1,6 +1,7 @@
 package zbus
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -119,6 +120,28 @@ func TestSurrogateVariadicWithWrongTypes(t *testing.T) {
 
 	if ok := assert.EqualError(t, err, "invalid argument type [2] expecting string got int"); !ok {
 		t.Fatal()
+	}
+}
+
+func TestSurrogateError(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	_, err := s.Call("MakeError", 10)
+	if ok := assert.EqualError(t, err, "invalid number of arguments expecting 0 got 1"); !ok {
+		t.Fatal()
+	}
+
+	result, err := s.Call("MakeError")
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Len(t, result, 2); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.IsType(t, errors.New(""), result[1]); !ok {
+		t.Error()
 	}
 
 }

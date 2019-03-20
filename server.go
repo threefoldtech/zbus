@@ -6,7 +6,7 @@ import (
 )
 
 type baseServer struct {
-	objects map[ObjectID]interface{}
+	objects map[ObjectID]*Surrogate
 	m       sync.RWMutex
 }
 
@@ -21,6 +21,6 @@ func (s *baseServer) Register(id ObjectID, object interface{}) error {
 		return fmt.Errorf("object already exists")
 	}
 
-	s.objects[id] = object
+	s.objects[id] = NewSurrogate(object)
 	return nil
 }

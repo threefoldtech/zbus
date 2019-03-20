@@ -31,8 +31,8 @@ type Surrogate struct {
 }
 
 // NewSurrogate crates a new surrogate object
-func NewSurrogate(object interface{}) Surrogate {
-	return Surrogate{reflect.ValueOf(object)}
+func NewSurrogate(object interface{}) *Surrogate {
+	return &Surrogate{reflect.ValueOf(object)}
 }
 
 // Call dynamically call a method
