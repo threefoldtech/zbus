@@ -86,7 +86,7 @@ func (s *RedisServer) cb(response *Response) {
 	log.Infof("response: %v", response)
 }
 
-func (s *RedisServer) getNext() (*Request, error) {
+func (s *RedisServer) getNext() ([]byte, error) {
 	con := s.pool.Get()
 	defer con.Close()
 
@@ -99,14 +99,14 @@ func (s *RedisServer) getNext() (*Request, error) {
 		return nil, redis.ErrNil
 	}
 
-	return LoadRequest(payload[1])
+	return payload[1], nil
 }
 
 // Run starts the ZBus server
 func (s *RedisServer) Run(ctx context.Context) error {
 	ch := s.Start(ctx, s.workers, s.cb)
 	for {
-		request, err := s.getNext()
+		payload, err := s.getNext()
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -117,6 +117,12 @@ func (s *RedisServer) Run(ctx context.Context) error {
 		} else if err != nil {
 			log.WithError(err).Error("failed to get next job. Retrying in 1 second")
 			<-time.After(1 * time.Second)
+			continue
+		}
+
+		request, err := LoadRequest(payload)
+		if err != nil {
+			log.WithError(err).Error("failed to load request object")
 			continue
 		}
 
