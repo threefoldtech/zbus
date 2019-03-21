@@ -1,0 +1,15 @@
+
+os:
+  - linux
+
+language: go
+
+go:
+  - 1.12.x
+
+gobuild_args: -v
+
+cache:
+  directories:
+    - $GOPATH/pkg/mod
+    - $HOME/.cache/go-build
