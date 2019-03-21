@@ -34,6 +34,15 @@ func NewMessage(id string, args ...interface{}) (msg Message, err error) {
 	return Message{ID: id, Arguments: data}, nil
 }
 
+// Unmarshal argument at position i into value
+func (m *Message) Unmarshal(i int, v interface{}) error {
+	if i < 0 || i >= len(m.Arguments) {
+		return fmt.Errorf("index out of range")
+	}
+
+	return msgpack.Unmarshal(m.Arguments[i], v)
+}
+
 // Value gets the concrete value stored at argument index i
 func (m *Message) Value(i int, t reflect.Type) (interface{}, error) {
 	arg, err := m.Argument(i, t)
@@ -46,7 +55,7 @@ func (m *Message) Value(i int, t reflect.Type) (interface{}, error) {
 
 // Argument loads an argument into a reflect.Value of type t
 func (m *Message) Argument(i int, t reflect.Type) (value reflect.Value, err error) {
-	if i >= len(m.Arguments) {
+	if i < 0 || i >= len(m.Arguments) {
 		return value, fmt.Errorf("index out of range")
 	}
 
