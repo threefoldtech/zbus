@@ -3,6 +3,7 @@ package zbus
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 //Version defines the object version
@@ -19,7 +20,17 @@ func (o *ObjectID) String() string {
 		return o.Name
 	}
 
-	return fmt.Sprint(o.Name, "-", o.Version)
+	return fmt.Sprint(o.Name, "@", o.Version)
+}
+
+//ObjectIDFromString parses an object id from string
+func ObjectIDFromString(id string) ObjectID {
+	parts := strings.SplitN(id, "@", 2)
+	if len(parts) == 1 {
+		return ObjectID{Name: parts[0]}
+	}
+
+	return ObjectID{Name: parts[0], Version: Version(parts[1])}
 }
 
 // Return results from a call

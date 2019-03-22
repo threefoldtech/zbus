@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/garyburd/redigo/redis"
+)
+
+const (
+	redisPullTimeout = 10
 )
 
 func newRedisPool(address string) (*redis.Pool, error) {
@@ -58,13 +63,15 @@ func newRedisPool(address string) (*redis.Pool, error) {
 // RedisServer implementation for Redis
 type RedisServer struct {
 	BaseServer
-	queue   string
+	module  string
 	pool    *redis.Pool
 	workers uint
+	running bool
+	state   sync.Mutex
 }
 
 // NewRedisServer builds a new ZBus server that uses disque as message broker
-func NewRedisServer(queue, address string, workers uint) (Server, error) {
+func NewRedisServer(module, address string, workers uint) (Server, error) {
 	if workers == 0 {
 		return nil, fmt.Errorf("invalid number of workers")
 	}
@@ -81,7 +88,7 @@ func NewRedisServer(queue, address string, workers uint) (Server, error) {
 		return nil, fmt.Errorf("could not establish connection: %s", err)
 	}
 
-	return &RedisServer{queue: queue, pool: pool, workers: workers}, nil
+	return &RedisServer{module: module, pool: pool, workers: workers}, nil
 }
 
 func (s *RedisServer) cb(request *Request, response *Response) {
@@ -97,11 +104,11 @@ func (s *RedisServer) cb(request *Request, response *Response) {
 	}
 }
 
-func (s *RedisServer) getNext() ([]byte, error) {
+func (s *RedisServer) getNext(pullArgs []interface{}) ([]byte, error) {
 	con := s.pool.Get()
 	defer con.Close()
 
-	payload, err := redis.ByteSlices(con.Do("BLPOP", s.queue, 10))
+	payload, err := redis.ByteSlices(con.Do("BLPOP", pullArgs...))
 	if err != nil {
 		return nil, err
 	}
@@ -115,9 +122,29 @@ func (s *RedisServer) getNext() ([]byte, error) {
 
 // Run starts the ZBus server
 func (s *RedisServer) Run(ctx context.Context) error {
+	//don't run multiple instances at the same time
+	s.state.Lock()
+	if s.running {
+		s.state.Unlock()
+		return fmt.Errorf("server is already running")
+	}
+	var pullArgs []interface{}
+	//fill in the queues to pull from, we have a queue per object
+	for id := range s.objects {
+		pullArgs = append(
+			pullArgs,
+			fmt.Sprintf("%s.%s", s.module, id),
+		)
+	}
+
+	s.running = true
+	s.state.Unlock()
+
+	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
+
 	ch := s.Start(ctx, s.workers, s.cb)
 	for {
-		payload, err := s.getNext()
+		payload, err := s.getNext(pullArgs)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -175,8 +202,8 @@ func (c *RedisClient) Request(module string, object ObjectID, method string, arg
 
 	con := c.pool.Get()
 	defer con.Close()
-
-	if err := con.Send("RPUSH", module, payload); err != nil {
+	queue := fmt.Sprintf("%s.%s", module, object)
+	if err := con.Send("RPUSH", queue, payload); err != nil {
 		return nil, err
 	}
 
