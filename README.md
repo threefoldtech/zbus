@@ -1,4 +1,4 @@
-![travis](https://travis-ci.com/threefoldtech/zbus.svg?branch=master)
+![travis](https://travis-ci.com/threefoldtech/zbus.svg?branch=master) [![GoDoc](https://godoc.org/github.com/threefoldtech/zbus?status.svg)](https://godoc.org/github.com/threefoldtech/zbus)
 
 # Motivation
 A light weight bus replacement for local inter-process communication. The main goal is to decouple separate
