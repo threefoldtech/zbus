@@ -16,6 +16,7 @@ import (
 
 const (
 	redisPullTimeout = 10
+	redisResponseTTL = 5 * 60 // 5 minutes
 )
 
 func newRedisPool(address string) (*redis.Pool, error) {
@@ -102,6 +103,8 @@ func (s *RedisServer) cb(request *Request, response *Response) {
 	if err := con.Send("RPUSH", request.ReplyTo, payload); err != nil {
 		log.WithError(err).Error("failed to send response")
 	}
+
+	con.Send("EXPIRE", request.ReplyTo, redisResponseTTL)
 }
 
 func (s *RedisServer) getNext(pullArgs []interface{}) ([]byte, error) {
