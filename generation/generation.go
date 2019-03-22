@@ -81,11 +81,14 @@ func generateSub(opt Options, typ reflect.Type) *jen.File {
 				),
 		),
 	)
+
 	//generate the methods
 	for i := 0; i < typ.NumMethod(); i++ {
+		f.Line()
 		generateFunc(f, stub, typ.Method(i))
 	}
 
+	f.Line()
 	return f
 }
 
@@ -100,29 +103,50 @@ func generateFunc(f *jen.File, name string, method reflect.Method) {
 func getMethodBody(m *reflect.Method) []jen.Code {
 	typ := m.Type
 
-	var code []jen.Code
-	args := []jen.Code{
-		jen.Id("s").Dot("module"),
-		jen.Id("s").Dot("object"),
-		jen.Lit(m.Name),
-	}
+	var names []jen.Code
 
 	for i := 0; i < typ.NumIn(); i++ {
 		stmt := jen.Id(fmt.Sprintf("%s%d", ArgumentPrefix, i))
 		if typ.IsVariadic() && i == typ.NumIn()-1 {
-			stmt = stmt.Op("...")
+			break
 		}
 
-		args = append(
-			args,
+		names = append(
+			names,
 			stmt,
 		)
+	}
+
+	code := []jen.Code{
+		jen.Id("args").Op(":=").Id("[]interface{}").
+			Values(jen.List(names...)),
+	}
+
+	if typ.IsVariadic() {
+		idx := typ.NumIn() - 1
+		code = append(
+			code,
+			jen.For(
+				jen.List(jen.Id("_"), jen.Id("argv")).Op(":=").Range().Id(fmt.Sprintf("%s%d", ArgumentPrefix, idx)),
+			).Block(
+				jen.Id("args").Op("=").Append(
+					jen.Id("args"), jen.Id("argv"),
+				),
+			),
+		)
+	}
+
+	inputs := []jen.Code{
+		jen.Id("s").Dot("module"),
+		jen.Id("s").Dot("object"),
+		jen.Lit(m.Name),
+		jen.Id("args").Op("..."),
 	}
 
 	code = append(
 		code,
 		jen.List(jen.Id("result"), jen.Id("err")).Op(":=").Id("s").Dot("client").Dot("Request").
-			Call(args...),
+			Call(inputs...),
 		jen.If(
 			jen.Id("err").Op("!=").Nil().Block(
 				jen.Panic(jen.Id("err")),
