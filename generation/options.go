@@ -22,6 +22,7 @@ func NewOptions() Options {
 	flag.StringVar(&opt.Name, "name", "", "object name as registered by the zbus server")
 	flag.StringVar(&opt.Version, "version", "", "object version as registered bt the zbus server")
 	flag.StringVar(&opt.Package, "package", "", "package of generated stub")
+	
 	var help bool
 	flag.BoolVar(&help, "help", false, "print this usage")
 	flag.Parse()
