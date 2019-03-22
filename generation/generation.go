@@ -156,6 +156,13 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 
 	for i := 0; i != typ.NumOut(); i++ {
 		name := fmt.Sprintf("%s%d", ReturnPrefix, i)
+		out := typ.Out(i)
+		if out.Kind() == reflect.Interface && out.Name() == "error" {
+			code = append(
+				code,
+				jen.Id(name).Op("=").New(jen.Qual("github.com/threefoldtech/zbus", "RemoteError")),
+			)
+		}
 		code = append(
 			code,
 			jen.If(jen.Id("err").Op(":=").Id("result").Dot("Unmarshal").
@@ -197,11 +204,11 @@ func getTypeCode(s *jen.Statement, t reflect.Type) *jen.Statement {
 			s.Op("[]"),
 			t.Elem(),
 		)
-	case reflect.Interface:
-		if t.Name() == "error" {
-			return s.Op("*").Qual("github.com/threefoldtech/zbus", "RemoteError")
-		}
-		fallthrough
+	// case reflect.Interface:
+	// 	if t.Name() == "error" {
+	// 		return s.Op("*").Qual("github.com/threefoldtech/zbus", "RemoteError")
+	// 	}
+	// 	fallthrough
 	default:
 		name := t.Name()
 		if name == "" {
