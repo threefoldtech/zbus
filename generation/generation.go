@@ -17,9 +17,9 @@ const (
 
 // Generator builds a generator code
 func Generator(fqn string) (*jen.File, error) {
-	parts := strings.Split(fqn, "+")
+	parts := strings.SplitN(fqn, "+", 2)
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid interface fqn name expecting format package+Interface")
+		return nil, fmt.Errorf("invalid interface fqn name expecting format path-to-package+Interface")
 	}
 
 	f := jen.NewFile("main")
