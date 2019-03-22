@@ -1,9 +1,9 @@
-![travis](https://travis-ci.com/threefoldtech/zbus.svg?branch=master) [![GoDoc](https://godoc.org/github.com/threefoldtech/zbus?status.svg)](https://godoc.org/github.com/threefoldtech/zbus)
+![travis](https://travis-ci.com/threefoldtech/zbus.svg?branch=master) [![codecov](https://codecov.io/gh/threefoldtech/zbus/branch/master/graph/badge.svg)](https://codecov.io/gh/threefoldtech/zbus) [![GoDoc](https://godoc.org/github.com/threefoldtech/zbus?status.svg)](https://godoc.org/github.com/threefoldtech/zbus)
 
 # Motivation
 A light weight bus replacement for local inter-process communication. The main goal is to decouple separate
-components from each other, by using a light-weight message bus (current implemented redis), to queue and 
-send message to the separate component that can serve it. 
+components from each other, by using a light-weight message bus (current implemented redis), to queue and
+send message to the separate component that can serve it.
 
 # Goal
 - Each module has a name, a single module can host one or more objects
