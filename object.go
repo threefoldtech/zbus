@@ -15,7 +15,7 @@ type ObjectID struct {
 	Version Version
 }
 
-func (o *ObjectID) String() string {
+func (o ObjectID) String() string {
 	if len(o.Version) == 0 {
 		return o.Name
 	}
