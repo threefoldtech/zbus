@@ -12,15 +12,18 @@ import (
 
 func main() {
 	options := generation.NewOptions()
-	fqn := flag.Args()
-	if len(fqn) != 1 {
+	args := flag.Args()
+	if len(args) != 2 {
 		log.Println("invalid call to zbus missing fqn")
-		log.Println("Usage: zbus [flags] <fqn>")
+		log.Println("Usage: zbus [flags] <fqn> <output-file>")
 		log.Println("	fdn = path-to-package+InterfaceName")
 		log.Println("	example: github.com/me/server+MyApi")
+		os.Exit(1)
 	}
+	fqn := args[0]
+	output := args[1]
 
-	generator, err := generation.Generator(fqn[0])
+	generator, err := generation.Generator(fqn)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	defer os.Remove(tmp.Name())
+	defer os.RemoveAll(tmp.Name())
 	generator.Render(tmp)
 	tmp.Close()
 
@@ -42,7 +45,12 @@ func main() {
 		"-package", options.Package,
 	)
 
-	cmd.Stdout = os.Stdout
+	outputFile, err := os.Create(output)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cmd.Stdout = outputFile
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
