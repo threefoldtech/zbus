@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/threefoldtech/zbus"
-	"github.com/threefoldtech/zbus/examples/server/api"
+	"github.com/threefoldtech/zbus/examples/server/stubs"
 )
 
 func main() {
@@ -14,8 +14,8 @@ func main() {
 		panic(err)
 	}
 
-	calculator := api.NewCalculatorStub(client)
-	utils := api.NewUtilsStub(client)
+	calculator := stubs.NewCalculatorStub(client)
+	utils := stubs.NewUtilsStub(client)
 
 	fmt.Println(calculator.Add(1, 2, 3, 4))
 	fmt.Println(calculator.Divide(200, 0))

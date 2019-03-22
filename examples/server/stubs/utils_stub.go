@@ -1,4 +1,4 @@
-package api
+package stubs
 
 import zbus "github.com/threefoldtech/zbus"
 
