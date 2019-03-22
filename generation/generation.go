@@ -197,6 +197,11 @@ func getTypeCode(s *jen.Statement, t reflect.Type) *jen.Statement {
 			s.Op("[]"),
 			t.Elem(),
 		)
+	case reflect.Interface:
+		if t.Name() == "error" {
+			return s.Op("*").Qual("github.com/threefoldtech/zbus", "RemoteError")
+		}
+		fallthrough
 	default:
 		name := t.Name()
 		if name == "" {
