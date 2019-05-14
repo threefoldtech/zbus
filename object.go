@@ -1,9 +1,14 @@
 package zbus
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
+)
+
+var (
+	contextType = reflect.TypeOf((*context.Context)(nil)).Elem()
 )
 
 //Version defines the object version
@@ -171,4 +176,32 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 	}
 
 	return ret, nil
+}
+
+// Streams return all stream objects associated with this object
+// stream methods only take one method (context) and must return
+// a single value a chan of a static type (struct, or primitive)
+func (s *Surrogate) Streams() {
+	num := s.value.NumMethod()
+	for i := 0; i < num; i++ {
+		method := s.value.Method(i)
+		methodType := method.Type()
+
+		// stream methods are always of type `fn(Context) -> chan T`
+		if methodType.NumIn() != 1 || methodType.NumOut() != 1 {
+			continue
+		}
+
+		// not a valid input type, expecting a context.Context
+		if !methodType.In(0).Implements(contextType) {
+			continue
+		}
+
+		out := methodType.Out(0)
+		if out.Kind() != reflect.Chan {
+			continue
+		}
+
+		//todo: validate the Elem of the chan is valid
+	}
 }
