@@ -181,10 +181,13 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 // Streams return all stream objects associated with this object
 // stream methods only take one method (context) and must return
 // a single value a chan of a static type (struct, or primitive)
-func (s *Surrogate) Streams() {
+func (s *Surrogate) Streams() []Stream {
 	num := s.value.NumMethod()
+	var streams []Stream
 	for i := 0; i < num; i++ {
 		method := s.value.Method(i)
+		name := s.value.Type().Method(i).Name
+
 		methodType := method.Type()
 
 		// stream methods are always of type `fn(Context) -> chan T`
@@ -203,5 +206,53 @@ func (s *Surrogate) Streams() {
 		}
 
 		//todo: validate the Elem of the chan is valid
+		streams = append(streams, Stream{name: name, method: method})
 	}
+
+	return streams
+}
+
+// Stream represents a channel of events
+type Stream struct {
+	name   string
+	method reflect.Value
+}
+
+func (s *Stream) Name() string {
+	return s.name
+}
+
+// Run stream to completion
+func (s *Stream) Run(ctx context.Context) <-chan interface{} {
+	out := make(chan interface{})
+
+	in := []reflect.Value{
+		reflect.ValueOf(ctx),
+	}
+
+	//we already done validation of the number of inputs
+	//and number of outputs in the "Streams" method, so
+	//it's safe to access the values with index directly
+	values := s.method.Call(in)
+	ch := values[0]
+	go func() {
+		defer close(out)
+
+		for {
+			//if we used rect it will not be possible to select
+			//on the context
+			value, ok := ch.Recv()
+			if !ok {
+				return
+			}
+
+			select {
+			case out <- value.Interface():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
 }
