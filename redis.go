@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vmihailenco/msgpack"
 
 	log "github.com/sirupsen/logrus"
 
@@ -98,13 +99,32 @@ func (s *RedisServer) cb(request *Request, response *Response) {
 	payload, err := response.Encode()
 	if err != nil {
 		log.WithError(err).Error("failed to encode response")
+		return
 	}
 
 	if err := con.Send("RPUSH", request.ReplyTo, payload); err != nil {
 		log.WithError(err).Error("failed to send response")
+		return
 	}
 
 	con.Send("EXPIRE", request.ReplyTo, redisResponseTTL)
+}
+
+// ecb event callback
+func (s *RedisServer) ecb(key string, o interface{}) {
+	con := s.pool.Get()
+	defer con.Close()
+	data, err := msgpack.Marshal(o)
+	if err != nil {
+		log.WithError(err).Error("failed to encode event")
+		return
+	}
+
+	key = fmt.Sprintf("%s.%s", s.module, key)
+
+	if err := con.Send("PUBLISH", key, data); err != nil {
+		log.WithError(err).Error("failed to send event")
+	}
 }
 
 func (s *RedisServer) getNext(pullArgs []interface{}) ([]byte, error) {
@@ -143,8 +163,11 @@ func (s *RedisServer) Run(ctx context.Context) error {
 	s.running = true
 	s.state.Unlock()
 
-	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
+	//start event workers
+	s.StartStreams(ctx, s.ecb)
 
+	// now start request/response workers and proxy calls and responses
+	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
 	ch := s.Start(ctx, s.workers, s.cb)
 	for {
 		payload, err := s.getNext(pullArgs)
