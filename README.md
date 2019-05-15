@@ -15,9 +15,13 @@ send message to the separate component that can serve it.
 - A consumer of the component can use a stub to abstract the calls to the remote module
 
 # Installation
+Installing the zbus compiler `zbusc`
+
 ```bash
-go install github.com/threefoldtech/zbus/zbus
+go install github.com/threefoldtech/zbus/zbusc
 ```
 
 # Usage
 It's very simple, check the [examples](examples)
+
+The [api.go](examples/server/api/api.go) have some `go generate` lines that runs the zbusc tool
