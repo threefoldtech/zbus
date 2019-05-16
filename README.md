@@ -19,6 +19,8 @@ send message to the separate component that can serve it.
 ```bash
 go install github.com/threefoldtech/zbus/zbus
 ```
+# Specs
+Please check [specs](specs/readme.md) here
 
 # Usage
 It's very simple, check the [examples](examples)
