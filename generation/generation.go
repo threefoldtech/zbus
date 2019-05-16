@@ -1,6 +1,7 @@
 package generation
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
@@ -51,10 +52,10 @@ func Generate(opt Options, inf interface{}) error {
 		return fmt.Errorf("not an interface")
 	}
 
-	return generateSub(opt, elem).Save("/dev/stdout")
+	return generateStub(opt, elem).Save("/dev/stdout")
 }
 
-func generateSub(opt Options, typ reflect.Type) *jen.File {
+func generateStub(opt Options, typ reflect.Type) *jen.File {
 	stub := fmt.Sprintf("%sStub", typ.Name())
 	f := jen.NewFile(opt.Package)
 
@@ -85,18 +86,84 @@ func generateSub(opt Options, typ reflect.Type) *jen.File {
 	//generate the methods
 	for i := 0; i < typ.NumMethod(); i++ {
 		f.Line()
-		generateFunc(f, stub, typ.Method(i))
+		method := typ.Method(i)
+		if isStream(&method) {
+			generateStream(f, stub, &method)
+		} else {
+			generateFunc(f, stub, &method)
+		}
+
 	}
 
 	f.Line()
 	return f
 }
 
-func generateFunc(f *jen.File, name string, method reflect.Method) {
+var (
+	contextType = reflect.TypeOf((*context.Context)(nil)).Elem()
+)
+
+func isStream(method *reflect.Method) bool {
+	typ := method.Type
+	if typ.NumIn() != 1 || typ.NumOut() != 1 {
+		return false
+	}
+	if !typ.In(0).Implements(contextType) {
+		return false
+	}
+	if typ.Out(0).Kind() != reflect.Chan {
+		return false
+	}
+
+	return true
+}
+
+func generateStream(f *jen.File, name string, method *reflect.Method) {
+	out := method.Type.Out(0)
+	elem := out.Elem()
 	f.Func().Parens(jen.Id("s").Op("*").Id(name)).Id(method.Name).
-		Params(getMethodParams(&method)...).
-		Params(getMethodReturn(&method)...).Block(
-		getMethodBody(&method)...,
+		Params(jen.Id("ctx").Qual("context", "Context")).
+		Params(
+			jen.Op("<-").Id("chan").Qual(elem.PkgPath(), elem.Name()),
+			jen.Id("error"),
+		).BlockFunc(getStreamBody(method))
+}
+
+func getStreamBody(method *reflect.Method) func(*jen.Group) {
+	elem := method.Type.Out(0).Elem()
+	return func(g *jen.Group) {
+		g.Id("ch").Op(":=").Make(jen.Id("chan").Qual(elem.PkgPath(), elem.Name()))
+
+		g.List(jen.Id("recv"), jen.Id("err")).Op(":=").Id("s").Dot("client").Dot("Stream").
+			Call(jen.Id("ctx"), jen.Id("s").Dot("module"), jen.Id("s").Dot("object"), jen.Lit(method.Name))
+
+		g.If(jen.Id("err").Op("!=").Nil()).Block(
+			jen.Return(jen.List(jen.Nil(), jen.Id("err"))),
+		)
+
+		g.Go().Func().Params().Block(
+			jen.For(jen.Id("event").Op(":=").Range().Id("recv")).Block(
+				jen.Var().Id("obj").Qual(elem.PkgPath(), elem.Name()),
+
+				jen.If(
+					jen.Id("err").Op(":=").Id("event").Dot("Unmarshal").Call(jen.Op("&").Id("obj")).
+						Op(";").Id("err").Op("!=").Nil()).Block(
+					jen.Panic(jen.Id("err")),
+				),
+
+				jen.Id("ch").Op("<-").Id("obj"),
+			),
+		).Call()
+
+		g.Return(jen.Id("ch"), jen.Nil())
+	}
+}
+
+func generateFunc(f *jen.File, name string, method *reflect.Method) {
+	f.Func().Parens(jen.Id("s").Op("*").Id(name)).Id(method.Name).
+		Params(getMethodParams(method)...).
+		Params(getMethodReturn(method)...).Block(
+		getMethodBody(method)...,
 	)
 }
 

@@ -261,3 +261,46 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 
 	return response, nil
 }
+
+// Stream listens to a stream of events from the server
+func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID, event string) (<-chan Event, error) {
+	con := c.pool.Get()
+	key := fmt.Sprintf("%s.%s.%s", module, object, event)
+	fmt.Println("subscribe to", key)
+	_, err := con.Do("SUBSCRIBE", key)
+
+	if err != nil {
+		con.Close()
+		return nil, err
+	}
+
+	ch := make(chan Event)
+	go func(con redis.Conn) {
+		defer con.Close()
+		defer con.Send("UNSUBSCRIBE")
+		defer close(ch)
+
+		for {
+			message, err := redis.ByteSlices(con.Receive())
+			if err != nil {
+				log.WithError(err).Errorf("failed to get next event for '%s'", key)
+				return
+			}
+
+			if len(message) != 3 {
+				log.WithField("key", key).Debugf("message was of len (%d)", len(message))
+				continue
+			}
+			// problem with cancellation here is that
+			// it won't actually happen unless we received
+			// a message on the subscribe channel
+			select {
+			case ch <- Event(message[2]):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(con)
+
+	return ch, nil
+}

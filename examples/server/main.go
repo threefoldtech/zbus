@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/threefoldtech/zbus"
 	"github.com/threefoldtech/zbus/examples/server/api"
@@ -52,6 +53,26 @@ func (c *Calculator) Avg(v []float64) float64 {
 
 func (u *Utils) Capitalize(s string) string {
 	return strings.ToUpper(s)
+}
+
+func (u *Utils) TikTok(ctx context.Context) <-chan time.Time {
+	c := make(chan time.Time)
+
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer close(c)
+		defer ticker.Stop()
+
+		for instance := range ticker.C {
+			select {
+			case <-ctx.Done():
+				return
+			case c <- instance:
+			}
+		}
+	}()
+
+	return c
 }
 
 func main() {

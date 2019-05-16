@@ -200,8 +200,7 @@ func (s *Surrogate) Streams() []Stream {
 			continue
 		}
 
-		out := methodType.Out(0)
-		if out.Kind() != reflect.Chan {
+		if methodType.Out(0).Kind() != reflect.Chan {
 			continue
 		}
 

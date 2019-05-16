@@ -139,3 +139,9 @@ func LoadResponse(data []byte) (*Response, error) {
 	var response Response
 	return &response, msgpack.Unmarshal(data, &response)
 }
+
+type Event []byte
+
+func (e Event) Unmarshal(o interface{}) error {
+	return msgpack.Unmarshal(e, o)
+}
