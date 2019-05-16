@@ -130,3 +130,37 @@ func TestBaseServerServiceError(t *testing.T) {
 		t.Error()
 	}
 }
+
+func TestBaseServerStream(t *testing.T) {
+	s := BaseServer{}
+	var o T
+
+	id := ObjectID{Name: "calc"}
+	s.Register(id, &o)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var wg sync.WaitGroup
+	var key string
+	var obj interface{}
+	cb := func(k string, o interface{}) {
+		key = k
+		obj = o
+
+		cancel()
+		wg.Done()
+	}
+
+	wg.Add(1)
+
+	s.StartStreams(ctx, cb)
+	wg.Wait()
+
+	if ok := assert.Equal(t, "calc.TikTok", key); !ok {
+		t.Error()
+	}
+
+	if ok := assert.IsType(t, 0, obj); !ok {
+		t.Error()
+	}
+}
