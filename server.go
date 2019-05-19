@@ -42,9 +42,9 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 
 func (s *BaseServer) call(request *Request) (Return, error) {
 	s.m.RLock()
-	defer s.m.RUnlock()
 
 	surrogate, ok := s.objects[request.Object]
+	s.m.RUnlock()
 
 	if !ok {
 		return nil, fmt.Errorf("unknown object")
