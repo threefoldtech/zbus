@@ -276,7 +276,11 @@ func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID
 
 	ch := make(chan Event)
 	go func(con redis.Conn) {
-		defer con.Close()
+		defer func (){
+		    close(ch)
+		    con.Send("UNSUBSCRIBE")
+		    con.Close()		    
+		 }()
 		defer con.Send("UNSUBSCRIBE")
 		defer close(ch)
 
