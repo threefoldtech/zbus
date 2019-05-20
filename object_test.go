@@ -1,10 +1,12 @@
 package zbus
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -31,6 +33,28 @@ func (t *T) Join(sep string, a ...string) string {
 
 func (t *T) MakeError() (int, error) {
 	return 0, fmt.Errorf("we made an error")
+}
+
+func (t *T) TikTok(ctx context.Context) <-chan int {
+	c := make(chan int)
+
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer close(c)
+		defer ticker.Stop()
+
+		i := 0
+		for range ticker.C {
+			i++
+			select {
+			case <-ctx.Done():
+				return
+			case c <- i:
+			}
+		}
+	}()
+
+	return c
 }
 
 func TestSurrogate(t *testing.T) {
@@ -211,5 +235,43 @@ func TestSurrogateRequestEncoded(t *testing.T) {
 
 	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
 		t.Error()
+	}
+}
+
+func TestSurrogateStreamsList(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+	streams := s.Streams()
+
+	if ok := assert.Len(t, streams, 1); !ok {
+		t.Fatal()
+	}
+
+	if ok := assert.Equal(t, "TikTok", streams[0].Name()); !ok {
+		t.Fatal()
+	}
+}
+
+func TestStreamRun(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+	streams := s.Streams()
+
+	if ok := assert.Len(t, streams, 1); !ok {
+		t.Fatal()
+	}
+
+	stream := streams[0]
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	i := 0
+	for range stream.Run(ctx) {
+		i++
+		if i == 3 {
+			cancel()
+		}
+	}
+
+	if ok := assert.True(t, i >= 3); !ok {
+		t.Fatal()
 	}
 }

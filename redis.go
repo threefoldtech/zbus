@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vmihailenco/msgpack"
 
 	log "github.com/sirupsen/logrus"
 
@@ -98,13 +99,32 @@ func (s *RedisServer) cb(request *Request, response *Response) {
 	payload, err := response.Encode()
 	if err != nil {
 		log.WithError(err).Error("failed to encode response")
+		return
 	}
 
 	if err := con.Send("RPUSH", request.ReplyTo, payload); err != nil {
 		log.WithError(err).Error("failed to send response")
+		return
 	}
 
 	con.Send("EXPIRE", request.ReplyTo, redisResponseTTL)
+}
+
+// ecb event callback
+func (s *RedisServer) ecb(key string, o interface{}) {
+	con := s.pool.Get()
+	defer con.Close()
+	data, err := msgpack.Marshal(o)
+	if err != nil {
+		log.WithError(err).Error("failed to encode event")
+		return
+	}
+
+	key = fmt.Sprintf("%s.%s", s.module, key)
+
+	if err := con.Send("PUBLISH", key, data); err != nil {
+		log.WithError(err).Error("failed to send event")
+	}
 }
 
 func (s *RedisServer) getNext(pullArgs []interface{}) ([]byte, error) {
@@ -143,8 +163,11 @@ func (s *RedisServer) Run(ctx context.Context) error {
 	s.running = true
 	s.state.Unlock()
 
-	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
+	//start event workers
+	s.StartStreams(ctx, s.ecb)
 
+	// now start request/response workers and proxy calls and responses
+	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
 	ch := s.Start(ctx, s.workers, s.cb)
 	for {
 		payload, err := s.getNext(pullArgs)
@@ -237,4 +260,49 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 	}
 
 	return response, nil
+}
+
+// Stream listens to a stream of events from the server
+func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID, event string) (<-chan Event, error) {
+	con := c.pool.Get()
+	key := fmt.Sprintf("%s.%s.%s", module, object, event)
+	fmt.Println("subscribe to", key)
+	_, err := con.Do("SUBSCRIBE", key)
+
+	if err != nil {
+		con.Close()
+		return nil, err
+	}
+
+	ch := make(chan Event)
+	go func(con redis.Conn) {
+		defer func() {
+			close(ch)
+			con.Send("UNSUBSCRIBE")
+			con.Close()
+		}()
+
+		for {
+			message, err := redis.ByteSlices(con.Receive())
+			if err != nil {
+				log.WithError(err).Errorf("failed to get next event for '%s'", key)
+				return
+			}
+
+			if len(message) != 3 {
+				log.WithField("key", key).Debugf("message was of len (%d)", len(message))
+				continue
+			}
+			// problem with cancellation here is that
+			// it won't actually happen unless we received
+			// a message on the subscribe channel
+			select {
+			case ch <- Event(message[2]):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(con)
+
+	return ch, nil
 }

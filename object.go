@@ -1,9 +1,14 @@
 package zbus
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
+)
+
+var (
+	contextType = reflect.TypeOf((*context.Context)(nil)).Elem()
 )
 
 //Version defines the object version
@@ -171,4 +176,82 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 	}
 
 	return ret, nil
+}
+
+// Streams return all stream objects associated with this object
+// stream methods only take one method (context) and must return
+// a single value a chan of a static type (struct, or primitive)
+func (s *Surrogate) Streams() []Stream {
+	num := s.value.NumMethod()
+	var streams []Stream
+	for i := 0; i < num; i++ {
+		method := s.value.Method(i)
+		name := s.value.Type().Method(i).Name
+
+		methodType := method.Type()
+
+		// stream methods are always of type `fn(Context) -> chan T`
+		if methodType.NumIn() != 1 || methodType.NumOut() != 1 {
+			continue
+		}
+
+		// not a valid input type, expecting a context.Context
+		if !methodType.In(0).Implements(contextType) {
+			continue
+		}
+
+		if methodType.Out(0).Kind() != reflect.Chan {
+			continue
+		}
+
+		//todo: validate the Elem of the chan is valid
+		streams = append(streams, Stream{name: name, method: method})
+	}
+
+	return streams
+}
+
+// Stream represents a channel of events
+type Stream struct {
+	name   string
+	method reflect.Value
+}
+
+func (s *Stream) Name() string {
+	return s.name
+}
+
+// Run stream to completion
+func (s *Stream) Run(ctx context.Context) <-chan interface{} {
+	out := make(chan interface{})
+
+	in := []reflect.Value{
+		reflect.ValueOf(ctx),
+	}
+
+	//we already done validation of the number of inputs
+	//and number of outputs in the "Streams" method, so
+	//it's safe to access the values with index directly
+	values := s.method.Call(in)
+	ch := values[0]
+	go func() {
+		defer close(out)
+
+		for {
+			//if we used rect it will not be possible to select
+			//on the context
+			value, ok := ch.Recv()
+			if !ok {
+				return
+			}
+
+			select {
+			case out <- value.Interface():
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
 }

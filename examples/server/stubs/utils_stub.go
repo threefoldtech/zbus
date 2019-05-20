@@ -1,6 +1,10 @@
 package stubs
 
-import zbus "github.com/threefoldtech/zbus"
+import (
+	"context"
+	zbus "github.com/threefoldtech/zbus"
+	"time"
+)
 
 type UtilsStub struct {
 	client zbus.Client
@@ -29,4 +33,22 @@ func (s *UtilsStub) Capitalize(arg0 string) (ret0 string) {
 		panic(err)
 	}
 	return
+}
+
+func (s *UtilsStub) TikTok(ctx context.Context) (<-chan time.Time, error) {
+	ch := make(chan time.Time)
+	recv, err := s.client.Stream(ctx, s.module, s.object, "TikTok")
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for event := range recv {
+			var obj time.Time
+			if err := event.Unmarshal(&obj); err != nil {
+				panic(err)
+			}
+			ch <- obj
+		}
+	}()
+	return ch, nil
 }

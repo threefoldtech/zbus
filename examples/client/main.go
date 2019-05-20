@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/threefoldtech/zbus"
@@ -20,4 +21,13 @@ func main() {
 	fmt.Println(calculator.Add(1, 2, 3, 4))
 	fmt.Println(calculator.Divide(200, 0))
 	fmt.Println(utils.Capitalize("this is awesome"))
+	ctx := context.Background()
+	ch, err := utils.TikTok(ctx)
+	if err != nil {
+		panic(err)
+	}
+	for time := range ch {
+		fmt.Println(time)
+	}
+
 }

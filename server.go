@@ -11,6 +11,9 @@ import (
 // Callback defines a callback method signature for responses
 type Callback func(request *Request, response *Response)
 
+// EventCallback is calld by the base server once an event is available
+type EventCallback func(key string, event interface{})
+
 // BaseServer implements the basic server functionality
 // In case you are building your own zbus server
 type BaseServer struct {
@@ -39,9 +42,9 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 
 func (s *BaseServer) call(request *Request) (Return, error) {
 	s.m.RLock()
-	defer s.m.RUnlock()
 
 	surrogate, ok := s.objects[request.Object]
+	s.m.RUnlock()
 
 	if !ok {
 		return nil, fmt.Errorf("unknown object")
@@ -78,6 +81,25 @@ func (s *BaseServer) worker(ctx context.Context, ch <-chan *Request, cb Callback
 			cb(request, response)
 		case <-ctx.Done():
 			break
+		}
+	}
+}
+
+func (s *BaseServer) streamWorker(ctx context.Context, key ObjectID, stream Stream, cb EventCallback) {
+	fqn := fmt.Sprintf("%s.%s", key, stream.Name())
+	for event := range stream.Run(ctx) {
+		cb(fqn, event)
+	}
+}
+
+// StartStreams start the stream (events) workers in the background
+// use the ctx to cancel the streams workers
+func (s *BaseServer) StartStreams(ctx context.Context, cb EventCallback) {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	for key, obj := range s.objects {
+		for _, stream := range obj.Streams() {
+			go s.streamWorker(ctx, key, stream, cb)
 		}
 	}
 }

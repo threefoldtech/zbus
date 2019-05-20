@@ -13,6 +13,7 @@ send message to the separate component that can serve it.
   must know precisely the method signature (name and arguments number and types). Same for the return value.
 - A consumer who has connection to the message broker can call methods on the remote objects, knowing only the module name, object name, method name, and argument list. The current implementation of the client supports only synchronous calls. In that matter it's similar to RPC.
 - A consumer of the component can use a stub to abstract the calls to the remote module
+- Support for events where clients can listen to announcements from different components
 
 # Installation
 Installing the zbus compiler `zbusc`
@@ -20,6 +21,8 @@ Installing the zbus compiler `zbusc`
 ```bash
 go install github.com/threefoldtech/zbus/zbusc
 ```
+# Specs
+Please check [specs](specs/readme.md) here
 
 # Usage
 It's very simple, check the [examples](examples)
