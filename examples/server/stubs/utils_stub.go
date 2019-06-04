@@ -42,6 +42,7 @@ func (s *UtilsStub) TikTok(ctx context.Context) (<-chan time.Time, error) {
 		return nil, err
 	}
 	go func() {
+		defer close(ch)
 		for event := range recv {
 			var obj time.Time
 			if err := event.Unmarshal(&obj); err != nil {

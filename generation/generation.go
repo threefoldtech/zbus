@@ -142,6 +142,7 @@ func getStreamBody(method *reflect.Method) func(*jen.Group) {
 		)
 
 		g.Go().Func().Params().Block(
+			jen.Defer().Close(jen.Id("ch")),
 			jen.For(jen.Id("event").Op(":=").Range().Id("recv")).Block(
 				jen.Var().Id("obj").Qual(elem.PkgPath(), elem.Name()),
 
