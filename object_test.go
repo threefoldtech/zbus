@@ -275,3 +275,24 @@ func TestStreamRun(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+
+func TestStreamRunTimeout(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+	streams := s.Streams()
+
+	if ok := assert.Len(t, streams, 1); !ok {
+		t.Fatal()
+	}
+
+	stream := streams[0]
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	i := 0
+	for range stream.Run(ctx) {
+		i++
+	}
+
+	assert.True(t, i<=5)
+}
