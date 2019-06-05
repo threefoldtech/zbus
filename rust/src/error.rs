@@ -41,7 +41,7 @@ impl From<decode::Error> for ZBusError {
 }
 
 impl From<()> for ZBusError {
-    fn from(e: ()) -> Self {
+    fn from(_: ()) -> Self {
         ZBusError::Void
     }
 }

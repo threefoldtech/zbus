@@ -19,14 +19,6 @@ impl RedisClient {
             .join(addr_fut)
             .map(|(con, addr)| RedisClient { addr, con })
     }
-
-    fn get_response(&self, id: Id) -> impl Future<Item = Response, Error = ZBusError> {
-        trace!("Getting response for Id {:?}", id);
-        self.con
-            .send(resp_array!["BLPOP", id.0, 0])
-            .map_err(|e| e.into())
-            .and_then(|resp: Vec<u8>| decode::from_slice(&resp).map_err(|e| e.into()))
-    }
 }
 
 fn get_response(
@@ -40,13 +32,13 @@ fn get_response(
 }
 
 impl Client for RedisClient {
-    fn request<'a>(
-        &'a self,
+    fn request(
+        self,
         module: &str,
         object: ObjectID,
         method: &str,
         args: Vec<ByteBuf>,
-    ) -> Box<dyn Future<Item = Response, Error = ZBusError> + 'a> {
+    ) -> Box<dyn Future<Item = Response, Error = ZBusError>> {
         let queue = format!("{}.{}", module, object.to_string());
         trace!("Pushing to queue {}", queue);
 
@@ -77,11 +69,17 @@ impl Client for RedisClient {
         module: &str,
         object_id: ObjectID,
         event: &str,
-    ) -> Box<dyn Future<Item = Iterator<Item = Event>, Error = ZBusError>> {
-        // Doesn't look like the current implementation will work
-        let channel = format!("{}.{}.{}", module, object_id.to_string(), event);
+    ) -> Box<dyn Future<Item = Box<dyn Stream<Item = Event, Error = ZBusError>>, Error = ZBusError>>
+    {
+        let channel = future::ok(format!("{}.{}.{}", module, object_id.to_string(), event));
 
-        unimplemented!();
+        let pubsub = client::pubsub_connect(&self.addr)
+            .join(channel)
+            .and_then(|(chan, channel_name)| chan.subscribe(&channel_name))
+            .map_err(|e| e.into())
+            .and_then(|stream| future::ok(RedisEventSubscriber::new(stream)));
+
+        Box::new(pubsub)
     }
 }
 
@@ -96,10 +94,8 @@ pub struct RedisEventSubscriber {
 }
 
 impl RedisEventSubscriber {
-    fn new(
-        chan: client::pubsub::PubsubStream,
-    ) -> impl Future<Item = RedisEventSubscriber, Error = ZBusError> {
-        future::ok(RedisEventSubscriber { chan })
+    fn new(chan: client::pubsub::PubsubStream) -> Box<dyn Stream<Item = Event, Error = ZBusError>> {
+        Box::new(RedisEventSubscriber { chan })
     }
 }
 

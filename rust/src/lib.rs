@@ -7,9 +7,7 @@ extern crate redis_async;
 #[macro_use]
 extern crate futures;
 
-use futures::Future;
-
-use redis_async::error::Error;
+use futures::{Future, Stream};
 
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
@@ -140,19 +138,19 @@ impl Request {
 pub struct Event {}
 
 pub trait Client {
-    fn request<'a>(
-        &'a self,
+    fn request(
+        self,
         module: &str,
         object: ObjectID,
         method: &str,
         args: Vec<ByteBuf>,
-    ) -> Box<dyn Future<Item = Response, Error = ZBusError> + 'a>;
+    ) -> Box<dyn Future<Item = Response, Error = ZBusError>>;
     fn stream<'a>(
         &mut self,
         module: &str,
         object_id: ObjectID,
         event: &str,
-    ) -> Box<dyn Future<Item = Iterator<Item = Event>, Error = ZBusError>>;
+    ) -> Box<dyn Future<Item = Box<dyn Stream<Item = Event, Error = ZBusError>>, Error = ZBusError>>;
 }
 
 pub trait Server {
