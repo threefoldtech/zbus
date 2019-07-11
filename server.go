@@ -3,6 +3,7 @@ package zbus
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -40,7 +41,7 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 	return nil
 }
 
-func (s *BaseServer) call(request *Request) (Return, error) {
+func (s *BaseServer) call(request *Request) (ret Return, err error) {
 	s.m.RLock()
 
 	surrogate, ok := s.objects[request.Object]
@@ -50,10 +51,19 @@ func (s *BaseServer) call(request *Request) (Return, error) {
 		return nil, fmt.Errorf("unknown object")
 	}
 
+	defer func() {
+		if p := recover(); p != nil {
+			stack := debug.Stack()
+			log.Error(string(stack))
+			err = fmt.Errorf("%s", p)
+		}
+	}()
+
 	return surrogate.CallRequest(request)
 }
 
 func (s *BaseServer) process(request *Request) (*Response, error) {
+
 	ret, err := s.call(request)
 	var msg string
 	if err != nil {

@@ -75,6 +75,11 @@ func (u *Utils) TikTok(ctx context.Context) <-chan time.Time {
 	return c
 }
 
+func (u *Utils) Panic() int {
+	panic("Aaaaah!")
+
+}
+
 func main() {
 	server, err := zbus.NewRedisServer("server", "tcp://localhost:6379", 1)
 

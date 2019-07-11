@@ -35,6 +35,18 @@ func (s *UtilsStub) Capitalize(arg0 string) (ret0 string) {
 	return
 }
 
+func (s *UtilsStub) Panic() (ret0 int) {
+	args := []interface{}{}
+	result, err := s.client.Request(s.module, s.object, "Panic", args...)
+	if err != nil {
+		panic(err)
+	}
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *UtilsStub) TikTok(ctx context.Context) (<-chan time.Time, error) {
 	ch := make(chan time.Time)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "TikTok")
