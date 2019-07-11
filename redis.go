@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vmihailenco/msgpack"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/rs/zerolog/log"
 
 	"github.com/garyburd/redigo/redis"
 )
@@ -98,12 +98,12 @@ func (s *RedisServer) cb(request *Request, response *Response) {
 	defer con.Close()
 	payload, err := response.Encode()
 	if err != nil {
-		log.WithError(err).Error("failed to encode response")
+		log.Error().Err(err).Msg("failed to encode response")
 		return
 	}
 
 	if err := con.Send("RPUSH", request.ReplyTo, payload); err != nil {
-		log.WithError(err).Error("failed to send response")
+		log.Error().Err(err).Msg("failed to send response")
 		return
 	}
 
@@ -116,14 +116,14 @@ func (s *RedisServer) ecb(key string, o interface{}) {
 	defer con.Close()
 	data, err := msgpack.Marshal(o)
 	if err != nil {
-		log.WithError(err).Error("failed to encode event")
+		log.Error().Err(err).Msg("failed to encode event")
 		return
 	}
 
 	key = fmt.Sprintf("%s.%s", s.module, key)
 
 	if err := con.Send("PUBLISH", key, data); err != nil {
-		log.WithError(err).Error("failed to send event")
+		log.Error().Err(err).Msg("failed to send event")
 	}
 }
 
@@ -179,14 +179,14 @@ func (s *RedisServer) Run(ctx context.Context) error {
 		if err == redis.ErrNil {
 			continue
 		} else if err != nil {
-			log.WithError(err).Error("failed to get next job. Retrying in 1 second")
+			log.Error().Err(err).Msg("failed to get next job. Retrying in 1 second")
 			<-time.After(1 * time.Second)
 			continue
 		}
 
 		request, err := LoadRequest(payload)
 		if err != nil {
-			log.WithError(err).Error("failed to load request object")
+			log.Error().Err(err).Msg("failed to load request object")
 			continue
 		}
 
@@ -285,12 +285,12 @@ func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID
 		for {
 			message, err := redis.ByteSlices(con.Receive())
 			if err != nil {
-				log.WithError(err).Errorf("failed to get next event for '%s'", key)
+				log.Error().Err(err).Msgf("failed to get next event for '%s'", key)
 				return
 			}
 
 			if len(message) != 3 {
-				log.WithField("key", key).Debugf("message was of len (%d)", len(message))
+				log.Debug().Str("key", key).Msgf("message was of len (%d)", len(message))
 				continue
 			}
 			// problem with cancellation here is that

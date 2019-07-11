@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/rs/zerolog/log"
 )
 
 // Callback defines a callback method signature for responses
@@ -54,8 +54,8 @@ func (s *BaseServer) call(request *Request) (ret Return, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			stack := debug.Stack()
-			log.Error(string(stack))
-			err = fmt.Errorf("%s", p)
+			log.Error().Msg(string(stack))
+			err = fmt.Errorf("remote method call %s.%s() paniced: %s", request.Object, request.Method, p)
 		}
 	}()
 
@@ -84,7 +84,7 @@ func (s *BaseServer) worker(ctx context.Context, ch <-chan *Request, cb Callback
 
 			response, err := s.process(request)
 			if err != nil {
-				log.WithError(err).Error("failed to create response object")
+				log.Error().Err(err).Msg("failed to create response object")
 				continue
 			}
 
