@@ -168,15 +168,25 @@ func (s *RedisServer) Run(ctx context.Context) error {
 
 	// now start request/response workers and proxy calls and responses
 	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
-	ch := s.Start(ctx, s.workers, s.cb)
+	workerCtx, shutdown := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+	ch := s.Start(workerCtx, &wg, s.workers, s.cb)
+
+	defer func() {
+		shutdown()
+		wg.Wait()
+		close(ch)
+	}()
+
 	for {
 		payload, err := s.getNext(pullArgs)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
+
 		if err == redis.ErrNil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
 			continue
 		} else if err != nil {
 			log.Error().Err(err).Msg("failed to get next job. Retrying in 1 second")
