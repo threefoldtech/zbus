@@ -32,8 +32,8 @@ func TestBaseServer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
-	feed, wg := s.Start(ctx, 1, cb)
+	var wg sync.WaitGroup
+	feed := s.Start(ctx, &wg, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "Join", " ", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
@@ -66,8 +66,8 @@ func TestBaseServerProtocolError(t *testing.T) {
 	cb := func(request *Request, response *Response) {
 		errorMsg = response.Error
 	}
-
-	feed, wg := s.Start(ctx, 1, cb)
+	var wg sync.WaitGroup
+	feed := s.Start(ctx, &wg, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "DoesNotExist", " ", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
@@ -108,8 +108,8 @@ func TestBaseServerServiceError(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
-	feed, wg := s.Start(ctx, 1, cb)
+	var wg sync.WaitGroup
+	feed := s.Start(ctx, &wg, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "MakeError")
 	if ok := assert.NoError(t, err); !ok {

@@ -169,7 +169,8 @@ func (s *RedisServer) Run(ctx context.Context) error {
 	// now start request/response workers and proxy calls and responses
 	pullArgs = append(pullArgs, redisPullTimeout) //the pull timeout
 	workerCtx, shutdown := context.WithCancel(context.Background())
-	ch, wg := s.Start(workerCtx, s.workers, s.cb)
+	var wg sync.WaitGroup
+	ch := s.Start(workerCtx, &wg, s.workers, s.cb)
 
 	defer func() {
 		shutdown()

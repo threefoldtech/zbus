@@ -73,7 +73,7 @@ func (s *BaseServer) process(request *Request) (*Response, error) {
 	return NewResponse(request.ID, msg, ret...)
 }
 
-func (s *BaseServer) worker(wg *sync.WaitGroup, ctx context.Context, ch <-chan *Request, cb Callback) {
+func (s *BaseServer) worker(ctx context.Context, wg *sync.WaitGroup, ch <-chan *Request, cb Callback) {
 	defer wg.Done()
 	for {
 		select {
@@ -118,17 +118,16 @@ func (s *BaseServer) StartStreams(ctx context.Context, cb EventCallback) {
 // Start starts the workers. Workers will call cb with results of requests. the call will
 // feed requests to workers by feeding requests to channel.
 // panics if workers number is zero.
-func (s *BaseServer) Start(ctx context.Context, workers uint, cb Callback) (chan<- *Request, *sync.WaitGroup) {
+func (s *BaseServer) Start(ctx context.Context, wg *sync.WaitGroup, workers uint, cb Callback) chan<- *Request {
 	if workers == 0 {
 		panic("invalid number of workers")
 	}
-	var wg sync.WaitGroup
 	ch := make(chan *Request)
 	var i uint
 	for ; i < workers; i++ {
 		wg.Add(1)
-		go s.worker(&wg, ctx, ch, cb)
+		go s.worker(ctx, wg, ch, cb)
 	}
 
-	return ch, &wg
+	return ch
 }
