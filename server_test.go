@@ -2,12 +2,20 @@ package zbus
 
 import (
 	"context"
+	"os"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	os.Exit(m.Run())
+}
 
 func TestBaseServer(t *testing.T) {
 	s := BaseServer{}
@@ -16,32 +24,28 @@ func TestBaseServer(t *testing.T) {
 	id := ObjectID{Name: "calc"}
 	s.Register(id, &o)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
+	ctx, shutdown := context.WithCancel(context.Background())
+	defer shutdown()
 	var result string
 	cb := func(request *Request, response *Response) {
-		defer wg.Done()
 		if err := response.Unmarshal(0, &result); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	feed := s.Start(ctx, 1, cb)
+	feed, wg := s.Start(ctx, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "Join", " ", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
 
-	wg.Add(1)
-
 	select {
 	case feed <- request:
 	case <-time.After(1 * time.Second):
 		t.Fatal("failed to schedule request")
 	}
-
+	shutdown()
 	wg.Wait()
 
 	if ok := assert.Equal(t, "hello world", result); !ok {
@@ -56,23 +60,19 @@ func TestBaseServerProtocolError(t *testing.T) {
 	id := ObjectID{Name: "calc"}
 	s.Register(id, &o)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
+	ctx, shutdown := context.WithCancel(context.Background())
+	defer shutdown()
 	var errorMsg string
 	cb := func(request *Request, response *Response) {
-		defer wg.Done()
 		errorMsg = response.Error
 	}
 
-	feed := s.Start(ctx, 1, cb)
+	feed, wg := s.Start(ctx, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "DoesNotExist", " ", "hello", "world")
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-
-	wg.Add(1)
 
 	select {
 	case feed <- request:
@@ -80,6 +80,7 @@ func TestBaseServerProtocolError(t *testing.T) {
 		t.Fatal("failed to schedule request")
 	}
 
+	shutdown()
 	wg.Wait()
 
 	if ok := assert.Equal(t, "not a function", errorMsg); !ok {
@@ -94,12 +95,11 @@ func TestBaseServerServiceError(t *testing.T) {
 	id := ObjectID{Name: "calc"}
 	s.Register(id, &o)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	var wg sync.WaitGroup
+	ctx, shutdown := context.WithCancel(context.Background())
+	defer shutdown()
 	var result RemoteError
 	cb := func(request *Request, response *Response) {
-		defer wg.Done()
+
 		if response.Error != "" {
 			t.Fatal(response.Error)
 		}
@@ -109,14 +109,12 @@ func TestBaseServerServiceError(t *testing.T) {
 		}
 	}
 
-	feed := s.Start(ctx, 1, cb)
+	feed, wg := s.Start(ctx, 1, cb)
 
 	request, err := NewRequest("id", "reply-to", id, "MakeError")
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-
-	wg.Add(1)
 
 	select {
 	case feed <- request:
@@ -124,6 +122,7 @@ func TestBaseServerServiceError(t *testing.T) {
 		t.Fatal("failed to schedule request")
 	}
 
+	shutdown()
 	wg.Wait()
 
 	if ok := assert.Equal(t, RemoteError{"we made an error"}, result); !ok {
