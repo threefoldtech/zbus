@@ -276,7 +276,6 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID, event string) (<-chan Event, error) {
 	con := c.pool.Get()
 	key := fmt.Sprintf("%s.%s.%s", module, object, event)
-	fmt.Println("subscribe to", key)
 	_, err := con.Do("SUBSCRIBE", key)
 
 	if err != nil {
