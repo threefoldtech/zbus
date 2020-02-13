@@ -179,6 +179,13 @@ func (s *RedisServer) Run(ctx context.Context) error {
 	}()
 
 	for {
+		// wait for free worker before we poll for jobs
+		select {
+		case ch <- &NoOP:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+
 		payload, err := s.getNext(pullArgs)
 
 		if err == redis.ErrNil {
