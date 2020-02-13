@@ -207,11 +207,10 @@ func (s *RedisServer) Run(ctx context.Context) error {
 			continue
 		}
 
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case ch <- request:
-		}
+		// force wait for a worker to poll
+		// the job (since we sure there is one free)
+		// we don't allow shutting the workers down here.
+		ch <- request
 	}
 }
 
