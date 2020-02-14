@@ -9,6 +9,14 @@ import (
 	log "github.com/rs/zerolog/log"
 )
 
+var (
+	// NoOP request will cause the worker to try polling again from the queue
+	// without doing anything. The idea is that we can use this to check
+	// if there are any free workers, by pusing this to the channel in a select
+	// and see if any of the workers receives it.
+	NoOP Request
+)
+
 // Callback defines a callback method signature for responses
 type Callback func(request *Request, response *Response)
 
@@ -81,6 +89,8 @@ func (s *BaseServer) worker(ctx context.Context, wg *sync.WaitGroup, ch <-chan *
 			if request == nil {
 				//channel has been closed
 				return
+			} else if request == &NoOP {
+				continue
 			}
 
 			response, err := s.process(request)
