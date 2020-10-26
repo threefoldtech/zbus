@@ -71,6 +71,7 @@ func (s *BaseServer) call(request *Request) (ret Return, err error) {
 }
 
 func (s *BaseServer) process(request *Request) (*Response, error) {
+	log.Debug().Str("object", request.Object.String()).Str("method", request.Method).Msg("calling")
 
 	ret, err := s.call(request)
 	var msg string
@@ -78,18 +79,23 @@ func (s *BaseServer) process(request *Request) (*Response, error) {
 		msg = err.Error()
 	}
 
+	log.Debug().Msg("response")
+
 	return NewResponse(request.ID, msg, ret...)
 }
 
 func (s *BaseServer) worker(ctx context.Context, wg *sync.WaitGroup, ch <-chan *Request, cb Callback) {
 	defer wg.Done()
 	for {
+		log.Debug().Msg("waiting for message")
 		select {
 		case request := <-ch:
 			if request == nil {
+				log.Debug().Msg("channel closed")
 				//channel has been closed
 				return
 			} else if request == &NoOP {
+				log.Debug().Str("type", "noop").Msg("skipping")
 				continue
 			}
 

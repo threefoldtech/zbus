@@ -154,6 +154,7 @@ func (s *RedisServer) Run(ctx context.Context) error {
 	var pullArgs []interface{}
 	//fill in the queues to pull from, we have a queue per object
 	for id := range s.objects {
+		log.Debug().Str("module", s.module).Str("id", id.String()).Msg("args")
 		pullArgs = append(
 			pullArgs,
 			fmt.Sprintf("%s.%s", s.module, id),
@@ -187,6 +188,7 @@ func (s *RedisServer) Run(ctx context.Context) error {
 		}
 
 		payload, err := s.getNext(pullArgs)
+		log.Debug().Str("payload", string(payload)).Msg("getnext")
 
 		if err == redis.ErrNil {
 			select {
