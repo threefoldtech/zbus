@@ -39,15 +39,15 @@ type WorkerState string
 // WorkerStatus represents the full worker status including request time and method
 // that it is working on.
 type WorkerStatus struct {
-	State     WorkerState `json:"state"`
-	StartTime time.Time   `json:"time,omitempty"`
-	Action    string      `json:"action,omitempty"`
+	State     WorkerState `json:"state" yaml:"state"`
+	StartTime time.Time   `json:"time,omitempty" yaml:"time,omitempty"`
+	Action    string      `json:"action,omitempty" yaml:"action,omitempty"`
 }
 
 // Status is returned by the server Status method
 type Status struct {
-	Objects []ObjectID
-	Workers []WorkerStatus
+	Objects []ObjectID     `json:"objects" yaml:"objects"`
+	Workers []WorkerStatus `json:"workers" yaml:"workers"`
 }
 
 // BaseServer implements the basic server functionality
