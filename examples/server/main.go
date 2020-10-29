@@ -3,8 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/threefoldtech/zbus"
@@ -75,6 +79,12 @@ func (u *Utils) TikTok(ctx context.Context) <-chan time.Time {
 	return c
 }
 
+func (u *Utils) Sleep(t time.Duration) error {
+	fmt.Printf("sleeping for %s\n", t)
+	<-time.After(t)
+	return nil
+}
+
 func (u *Utils) Panic() int {
 	panic("Aaaaah!")
 
@@ -92,7 +102,16 @@ func main() {
 	server.Register(zbus.ObjectID{Name: "calculator", Version: "1.0"}, &calc)
 	server.Register(zbus.ObjectID{Name: "utils", Version: "1.0"}, &utils)
 
-	if err := server.Run(context.Background()); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGINT)
+	go func() {
+		<-ch
+		log.Println("shutting down!")
+		cancel()
+	}()
+
+	if err := server.Run(ctx); err != nil && err != context.Canceled {
 		panic(err)
 	}
 }

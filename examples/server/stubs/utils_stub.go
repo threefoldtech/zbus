@@ -47,6 +47,19 @@ func (s *UtilsStub) Panic() (ret0 int) {
 	return
 }
 
+func (s *UtilsStub) Sleep(arg0 time.Duration) (ret0 error) {
+	args := []interface{}{arg0}
+	result, err := s.client.Request(s.module, s.object, "Sleep", args...)
+	if err != nil {
+		panic(err)
+	}
+	ret0 = new(zbus.RemoteError)
+	if err := result.Unmarshal(0, &ret0); err != nil {
+		panic(err)
+	}
+	return
+}
+
 func (s *UtilsStub) TikTok(ctx context.Context) (<-chan time.Time, error) {
 	ch := make(chan time.Time)
 	recv, err := s.client.Stream(ctx, s.module, s.object, "TikTok")

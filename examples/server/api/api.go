@@ -22,4 +22,5 @@ type Utils interface {
 	Capitalize(s string) string
 	TikTok(ctx context.Context) <-chan time.Time // event
 	Panic() int
+	Sleep(t time.Duration) error
 }

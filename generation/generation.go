@@ -205,6 +205,7 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 	}
 
 	inputs := []jen.Code{
+		jen.Id("ctx"),
 		jen.Id("s").Dot("module"),
 		jen.Id("s").Dot("object"),
 		jen.Lit(m.Name),
@@ -213,7 +214,7 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 
 	code = append(
 		code,
-		jen.List(jen.Id("result"), jen.Id("err")).Op(":=").Id("s").Dot("client").Dot("Request").
+		jen.List(jen.Id("result"), jen.Id("err")).Op(":=").Id("s").Dot("client").Dot("RequestContext").
 			Call(inputs...),
 		jen.If(
 			jen.Id("err").Op("!=").Nil().Block(
@@ -288,7 +289,10 @@ func getTypeCode(s *jen.Statement, t reflect.Type) *jen.Statement {
 }
 
 func getMethodParams(m *reflect.Method) []jen.Code {
-	var code []jen.Code
+	code := []jen.Code{
+		jen.Id("ctx").Qual("context", "Context"),
+	}
+
 	typ := m.Type
 	for i := 0; i < typ.NumIn(); i++ {
 		argName := fmt.Sprintf("%s%d", ArgumentPrefix, i)
