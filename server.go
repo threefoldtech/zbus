@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sync"
+	"time"
 
 	log "github.com/rs/zerolog/log"
 )
@@ -15,6 +16,15 @@ var (
 	// if there are any free workers, by pusing this to the channel in a select
 	// and see if any of the workers receives it.
 	NoOP Request
+
+	statusObjectID = ObjectID{Name: "zbus", Version: "1.0"}
+)
+
+const (
+	// WorkerFree free state
+	WorkerFree WorkerState = "free"
+	// WorkerBusy busy state
+	WorkerBusy WorkerState = "busy"
 )
 
 // Callback defines a callback method signature for responses
@@ -23,11 +33,31 @@ type Callback func(request *Request, response *Response)
 // EventCallback is calld by the base server once an event is available
 type EventCallback func(key string, event interface{})
 
+// WorkerState represents curret worker state (free, or busy)
+type WorkerState string
+
+// WorkerStatus represents the full worker status including request time and method
+// that it is working on.
+type WorkerStatus struct {
+	State     WorkerState `json:"state"`
+	StartTime time.Time   `json:"time,omitempty"`
+	Action    string      `json:"action,omitempty"`
+}
+
+// Status is returned by the server Status method
+type Status struct {
+	Objects []ObjectID
+	Workers []WorkerStatus
+}
+
 // BaseServer implements the basic server functionality
 // In case you are building your own zbus server
 type BaseServer struct {
 	objects map[ObjectID]*Surrogate
 	m       sync.RWMutex
+
+	status  []WorkerStatus
+	statusM sync.RWMutex
 }
 
 // Register registers an object on server
@@ -36,6 +66,10 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 	// wrap object in an abstract wrapper
 	s.m.Lock()
 	defer s.m.Unlock()
+
+	if id.String() == statusObjectID.String() {
+		return fmt.Errorf("object id is reserved")
+	}
 
 	if s.objects == nil {
 		s.objects = make(map[ObjectID]*Surrogate)
@@ -81,8 +115,31 @@ func (s *BaseServer) process(request *Request) (*Response, error) {
 	return NewResponse(request.ID, msg, ret...)
 }
 
-func (s *BaseServer) worker(ctx context.Context, wg *sync.WaitGroup, ch <-chan *Request, cb Callback) {
+func (s *BaseServer) statusIn(id uint, request *Request) {
+	s.statusM.Lock()
+	defer s.statusM.Unlock()
+
+	s.status[id] = WorkerStatus{
+		State:     WorkerBusy,
+		StartTime: time.Now(),
+		Action:    fmt.Sprintf("[%s].%s()", request.Object.String(), request.Method),
+	}
+}
+
+func (s *BaseServer) statusOut(id uint) {
+	s.statusM.Lock()
+	defer s.statusM.Unlock()
+
+	s.status[id] = WorkerStatus{
+		State:     WorkerFree,
+		StartTime: time.Now(),
+	}
+}
+
+func (s *BaseServer) worker(ctx context.Context, id uint, wg *sync.WaitGroup, ch <-chan *Request, cb Callback) {
 	defer wg.Done()
+	s.statusOut(id)
+
 	for {
 		select {
 		case request := <-ch:
@@ -93,7 +150,10 @@ func (s *BaseServer) worker(ctx context.Context, wg *sync.WaitGroup, ch <-chan *
 				continue
 			}
 
+			s.statusIn(id, request)
 			response, err := s.process(request)
+			s.statusOut(id)
+
 			if err != nil {
 				log.Error().Err(err).Msg("failed to create response object")
 				continue
@@ -125,6 +185,27 @@ func (s *BaseServer) StartStreams(ctx context.Context, cb EventCallback) {
 	}
 }
 
+// Status returns a copy of the internal worker status
+func (s *BaseServer) Status() Status {
+	s.statusM.RLock()
+	s.m.RLock()
+
+	defer s.m.RUnlock()
+	defer s.statusM.RUnlock()
+
+	ids := make([]ObjectID, 0, len(s.objects))
+	for id := range s.objects {
+		ids = append(ids, id)
+	}
+
+	results := make([]WorkerStatus, len(s.status))
+	for i := 0; i < len(s.status); i++ {
+		results[i] = s.status[i]
+	}
+
+	return Status{Objects: ids, Workers: results}
+}
+
 // Start starts the workers. Workers will call cb with results of requests. the call will
 // feed requests to workers by feeding requests to channel.
 // panics if workers number is zero.
@@ -132,11 +213,13 @@ func (s *BaseServer) Start(ctx context.Context, wg *sync.WaitGroup, workers uint
 	if workers == 0 {
 		panic("invalid number of workers")
 	}
+
+	s.status = make([]WorkerStatus, workers)
 	ch := make(chan *Request)
-	var i uint
-	for ; i < workers; i++ {
+	var id uint
+	for ; id < workers; id++ {
 		wg.Add(1)
-		go s.worker(ctx, wg, ch, cb)
+		go s.worker(ctx, id, wg, ch, cb)
 	}
 
 	return ch

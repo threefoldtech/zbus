@@ -143,6 +143,52 @@ func (s *RedisServer) getNext(pullArgs []interface{}) ([]byte, error) {
 	return payload[1], nil
 }
 
+func (s *RedisServer) statusHandler(ctx context.Context) error {
+	pullArgs := []interface{}{
+		fmt.Sprintf("%s.%s", s.module, statusObjectID),
+		redisPullTimeout,
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		payload, err := s.getNext(pullArgs)
+
+		if err == redis.ErrNil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+			continue
+		} else if err != nil {
+			log.Error().Err(err).Msg("failed to get next job. Retrying in 1 second")
+			<-time.After(1 * time.Second)
+			continue
+		}
+
+		request, err := LoadRequest(payload)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to load request object")
+			continue
+		}
+
+		status := s.Status()
+		response, err := NewResponse(request.ID, "", status)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to create response object")
+			continue
+		}
+
+		// send response back
+		s.cb(request, response)
+	}
+}
+
 // Run starts the ZBus server
 func (s *RedisServer) Run(ctx context.Context) error {
 	//don't run multiple instances at the same time
@@ -162,6 +208,9 @@ func (s *RedisServer) Run(ctx context.Context) error {
 
 	s.running = true
 	s.state.Unlock()
+
+	//status handler runs in its own worker.
+	go s.statusHandler(ctx)
 
 	//start event workers
 	s.StartStreams(ctx, s.ecb)
@@ -231,6 +280,11 @@ func NewRedisClient(address string) (Client, error) {
 
 // Request makes a request to object.Method hosted by module. A module name is the queue name used in the server part.
 func (c *RedisClient) Request(module string, object ObjectID, method string, args ...interface{}) (*Response, error) {
+	return c.RequestContext(context.Background(), module, object, method, args...)
+}
+
+// RequestContext makes a request to object.Method hosted by module. A module name is the queue name used in the server part.
+func (c *RedisClient) RequestContext(ctx context.Context, module string, object ObjectID, method string, args ...interface{}) (*Response, error) {
 	id := uuid.New().String()
 	request, err := NewRequest(id, id, object, method, args...)
 	if err != nil {
@@ -250,14 +304,26 @@ func (c *RedisClient) Request(module string, object ObjectID, method string, arg
 	}
 
 	// wait for response
-	return c.getResponse(con, id)
+	for {
+		response, err := c.getResponse(con, id)
+		if err == redis.ErrNil {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				continue
+			}
+		}
+
+		return response, nil
+	}
 }
 
 func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) {
 	//TODO: a timeout or an exit strategy is required here in case
 	//the response never came back
 
-	payload, err := redis.ByteSlices(con.Do("BLPOP", id, 0))
+	payload, err := redis.ByteSlices(con.Do("BLPOP", id, 1))
 	if err != nil {
 		return nil, err
 	}
@@ -276,6 +342,21 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 	}
 
 	return response, nil
+}
+
+// Status return module status
+func (c *RedisClient) Status(ctx context.Context, module string) (Status, error) {
+	response, err := c.RequestContext(ctx, module, statusObjectID, "")
+	if err != nil {
+		return Status{}, err
+	}
+
+	var status Status
+	if err := response.Unmarshal(0, &status); err != nil {
+		return status, err
+	}
+
+	return status, nil
 }
 
 // Stream listens to a stream of events from the server
