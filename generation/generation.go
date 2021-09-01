@@ -152,7 +152,11 @@ func getStreamBody(method *reflect.Method) func(*jen.Group) {
 					jen.Panic(jen.Id("err")),
 				),
 
-				jen.Id("ch").Op("<-").Id("obj"),
+				jen.Select().Block(
+					jen.Case(jen.Op("<-").Id("ctx").Dot("Done").Call()).Block(jen.Return()),
+					jen.Case(jen.Id("ch").Op("<-").Id("obj")).Block(),
+					jen.Default().Block(),
+				),
 			),
 		).Call()
 
