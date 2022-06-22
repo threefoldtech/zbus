@@ -96,6 +96,7 @@ func (s *BaseServer) call(request *Request) (ret Output, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			stack := debug.Stack()
+			fmt.Println(string(stack))
 			log.Error().Msg(string(stack))
 			err = fmt.Errorf("remote method call %s.%s() paniced: %s", request.Object, request.Method, p)
 		}

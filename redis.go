@@ -177,7 +177,7 @@ func (s *RedisServer) statusHandler(ctx context.Context) error {
 			continue
 		}
 
-		status, err := returnFromObjects(s.Status())
+		status, err := returnFromObjects(nil, s.Status())
 		if err != nil {
 			log.Error().Err(err).Msg("failed to create response")
 			continue
@@ -337,8 +337,8 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 		return nil, err
 	}
 
-	if len(response.Error) != 0 {
-		return nil, fmt.Errorf(response.Error)
+	if response.Error != nil {
+		return nil, fmt.Errorf(*response.Error)
 	}
 
 	return response, nil

@@ -65,7 +65,7 @@ func TestBaseServerProtocolError(t *testing.T) {
 
 	ctx, shutdown := context.WithCancel(context.Background())
 	defer shutdown()
-	var errorMsg string
+	var errorMsg *string
 	cb := func(request *Request, response *Response) {
 		errorMsg = response.Error
 	}
@@ -86,7 +86,7 @@ func TestBaseServerProtocolError(t *testing.T) {
 	shutdown()
 	wg.Wait()
 
-	if ok := assert.Equal(t, "not a function", errorMsg); !ok {
+	if ok := assert.Equal(t, "not a function", *errorMsg); !ok {
 		t.Error()
 	}
 }
@@ -103,8 +103,8 @@ func TestBaseServerServiceError(t *testing.T) {
 	var result error
 	cb := func(request *Request, response *Response) {
 
-		if response.Error != "" {
-			t.Fatal(response.Error)
+		if response.Error != nil {
+			t.Fatal(*response.Error)
 		}
 
 		result = response.CallError()

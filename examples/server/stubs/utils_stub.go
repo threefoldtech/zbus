@@ -2,9 +2,8 @@ package stubs
 
 import (
 	"context"
-	"time"
-
 	zbus "github.com/threefoldtech/zbus"
+	"time"
 )
 
 type UtilsStub struct {

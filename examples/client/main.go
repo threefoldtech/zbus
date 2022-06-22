@@ -20,7 +20,7 @@ func main() {
 
 	ctx := context.Background()
 
-	fmt.Println(calculator.Add(ctx, 1, 2, 3, 4))
+	fmt.Println(calculator.Add(ctx, 3, 4))
 	fmt.Println(calculator.Divide(ctx, 200, 0))
 	fmt.Println(utils.Capitalize(ctx, "this is awesome"))
 	//fmt.Println(utils.Panic(ctx))

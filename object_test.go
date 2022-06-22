@@ -218,9 +218,13 @@ func TestSurrogateError(t *testing.T) {
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
-
 	require.NotNil(t, result.Error)
 
+	var v int = 10
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, 0, v)
 	require.NotEmpty(t, result.Error.Message)
 	require.Equal(t, "we made an error", result.Error.Message)
 

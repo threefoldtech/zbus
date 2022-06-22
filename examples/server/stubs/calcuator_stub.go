@@ -22,11 +22,8 @@ func NewCalculatorStub(client zbus.Client) *CalculatorStub {
 	}
 }
 
-func (s *CalculatorStub) Add(ctx context.Context, arg0 ...float64) (ret0 float64) {
-	args := []interface{}{}
-	for _, argv := range arg0 {
-		args = append(args, argv)
-	}
+func (s *CalculatorStub) Add(ctx context.Context, arg0 float64, arg1 float64) (ret0 float64) {
+	args := []interface{}{arg0, arg1}
 	result, err := s.client.RequestContext(ctx, s.module, s.object, "Add", args...)
 	if err != nil {
 		panic(err)
@@ -34,6 +31,23 @@ func (s *CalculatorStub) Add(ctx context.Context, arg0 ...float64) (ret0 float64
 	result.PanicOnError()
 	loader := zbus.Loader{
 		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (s *CalculatorStub) AddSub(ctx context.Context, arg0 float64, arg1 float64) (ret0 float64, ret1 float64) {
+	args := []interface{}{arg0, arg1}
+	result, err := s.client.RequestContext(ctx, s.module, s.object, "AddSub", args...)
+	if err != nil {
+		panic(err)
+	}
+	result.PanicOnError()
+	loader := zbus.Loader{
+		&ret0,
+		&ret1,
 	}
 	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)

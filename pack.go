@@ -122,37 +122,56 @@ type Output struct {
 
 func returnFromValues(values []reflect.Value) (Output, error) {
 	var objs []interface{}
+	var err error
 	for _, res := range values {
+		typ := res.Type()
+		if typ.Kind() == reflect.Interface && typ.Name() == "error" {
+			if v := res.Interface(); v != nil {
+				err = v.(error)
+			}
+			continue
+		}
 		obj := res.Interface()
 		objs = append(objs, obj)
 	}
 
-	return returnFromObjects(objs...)
+	return returnFromObjects(err, objs...)
 }
 
-func returnFromObjects(objs ...interface{}) (Output, error) {
+func returnFromObjects(err error, objs ...interface{}) (Output, error) {
 	var ret Output
+	if err != nil {
+		ret.Error = &CallError{err.Error()}
+	}
+
 	if len(objs) == 0 {
 		return ret, nil
 	}
 
-	trim := len(objs)
-	last := objs[len(objs)-1]
-	if err, ok := last.(error); ok {
-		ret.Error = &CallError{err.Error()}
-		trim = len(objs) - 1
+	var data []byte
+	var encErr error
+	if len(objs) == 1 {
+		data, encErr = msgpack.Marshal(objs[0])
+	} else if len(objs) > 1 {
+		data, encErr = msgpack.Marshal(objs)
 	}
 
-	data, err := msgpack.Marshal(objs[:trim])
-	if err != nil {
+	if encErr != nil {
 		return Output{}, err
 	}
+
 	ret.Data = data
 	return ret, nil
 }
 
 // Unmarshal argument at position i into value
 func (t *Output) Unmarshal(v *Loader) error {
+	if len(*v) == 0 {
+		return nil
+	} else if len(*v) == 1 {
+		return msgpack.Unmarshal(t.Data, (*v)[0])
+	}
+	// in case is more we assume we have a longer list of objects
 	return msgpack.Unmarshal(t.Data, v)
 }
 
@@ -164,14 +183,19 @@ type Response struct {
 	Output Output
 	// Error here is any protocol error that is
 	// not related to error returned by the remote call
-	Error string
+	Error *string
 }
 
 // NewResponse creates a response with id, and errMsg and return values
 // note that errMsg is the protocol level errors (no such method, unknown object, etc...)
 // errors returned by the service method itself should be encapsulated in the values
 func NewResponse(id string, ret Output, errMsg string) *Response {
-	return &Response{ID: id, Output: ret, Error: errMsg}
+	var err *string
+	if len(errMsg) != 0 {
+		err = &errMsg
+	}
+
+	return &Response{ID: id, Output: ret, Error: err}
 }
 
 // Panic causes this response to panic
@@ -179,8 +203,8 @@ func NewResponse(id string, ret Output, errMsg string) *Response {
 // indication to a problem with code hence
 // a panic is okay
 func (m *Response) PanicOnError() {
-	if len(m.Error) != 0 {
-		panic(m.Error)
+	if m.Error != nil {
+		panic(*m.Error)
 	}
 }
 
