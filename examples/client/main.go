@@ -18,13 +18,15 @@ func main() {
 	calculator := stubs.NewCalculatorStub(client)
 	utils := stubs.NewUtilsStub(client)
 
-	fmt.Println(calculator.Add(1, 2, 3, 4))
-	fmt.Println(calculator.Divide(200, 0))
-	fmt.Println(utils.Capitalize("this is awesome"))
-	fmt.Println(utils.Panic())
+	ctx := context.Background()
+
+	fmt.Println(calculator.Add(ctx, 1, 2, 3, 4))
+	fmt.Println(calculator.Divide(ctx, 200, 0))
+	fmt.Println(utils.Capitalize(ctx, "this is awesome"))
+	//fmt.Println(utils.Panic(ctx))
+	fmt.Println(utils.Tuple(ctx))
 
 	fmt.Println("after the panic")
-	ctx := context.Background()
 	ch, err := utils.TikTok(ctx)
 	if err != nil {
 		panic(err)

@@ -227,14 +227,18 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 		),
 	)
 
+	code = append(code,
+		jen.Id("result").Dot("PanicOnError").Call(),
+	)
 	for i := 0; i != typ.NumOut(); i++ {
 		name := fmt.Sprintf("%s%d", ReturnPrefix, i)
 		out := typ.Out(i)
 		if out.Kind() == reflect.Interface && out.Name() == "error" {
 			code = append(
 				code,
-				jen.Id(name).Op("=").New(jen.Qual("github.com/threefoldtech/zbus", "RemoteError")),
+				jen.Id(name).Op("=").Id("result").Dot("CallError").Call(),
 			)
+			continue
 		}
 		code = append(
 			code,

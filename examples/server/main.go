@@ -59,6 +59,10 @@ func (u *Utils) Capitalize(s string) string {
 	return strings.ToUpper(s)
 }
 
+func (u *Utils) Tuple() (int, string, float64, error) {
+	return 10, "hello world", 0.5, nil
+}
+
 func (u *Utils) TikTok(ctx context.Context) <-chan time.Time {
 	c := make(chan time.Time)
 
