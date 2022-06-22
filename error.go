@@ -9,11 +9,3 @@ type RemoteError struct {
 func (r *RemoteError) Error() string {
 	return r.Message
 }
-
-type ProtocolError struct {
-	Message string
-}
-
-func (r *ProtocolError) Error() string {
-	return r.Message
-}

@@ -71,7 +71,7 @@ func (s *Surrogate) isValid(method reflect.Type, args int) error {
 }
 
 // Call dynamically call a method
-func (s *Surrogate) Call(name string, args ...interface{}) (ret Return, err error) {
+func (s *Surrogate) Call(name string, args ...interface{}) (ret Outputs, err error) {
 	method, err := s.getMethod(name)
 	if err != nil {
 		return ret, err
@@ -120,7 +120,7 @@ func (s *Surrogate) Call(name string, args ...interface{}) (ret Return, err erro
 }
 
 // CallRequest calls a method defined by request
-func (s *Surrogate) CallRequest(request *Request) (ret Return, err error) {
+func (s *Surrogate) CallRequest(request *Request) (ret Outputs, err error) {
 	method, err := s.getMethod(request.Method)
 	if err != nil {
 		return ret, err
@@ -137,7 +137,7 @@ func (s *Surrogate) CallRequest(request *Request) (ret Return, err error) {
 		expected--
 	}
 
-	values := make([]reflect.Value, 0, len(request.Tuple))
+	values := make([]reflect.Value, 0, len(request.Inputs))
 	for i := 0; i < expected; i++ {
 		expect := methodType.In(i)
 		value, err := request.Argument(i, expect)

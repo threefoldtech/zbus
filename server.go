@@ -83,7 +83,7 @@ func (s *BaseServer) Register(id ObjectID, object interface{}) error {
 	return nil
 }
 
-func (s *BaseServer) call(request *Request) (ret Return, err error) {
+func (s *BaseServer) call(request *Request) (ret Outputs, err error) {
 	s.m.RLock()
 
 	surrogate, ok := s.objects[request.Object]

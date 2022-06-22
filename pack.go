@@ -32,33 +32,13 @@ func (t Tuple) Unmarshal(i int, v interface{}) error {
 	return msgpack.Unmarshal(t[i], v)
 }
 
-// Message is base message object
-type Message struct {
-	ID    string
-	Tuple Tuple
-}
-
-// NewMessage creates a new message
-func NewMessage(id string, args ...interface{}) (msg Message, err error) {
-	// We encode arguments separately before we encode the full msg object
-	// To make sure we can decode each argument to its correct type at the
-	// receiver end.
-
-	tuple, err := newTuple(args...)
-	if err != nil {
-		return Message{}, err
-	}
-
-	return Message{ID: id, Tuple: tuple}, nil
-}
-
 // Unmarshal argument at position i into value
-func (m *Message) Unmarshal(i int, v interface{}) error {
-	return m.Tuple.Unmarshal(i, v)
+func (m *Request) Unmarshal(i int, v interface{}) error {
+	return m.Inputs.Unmarshal(i, v)
 }
 
 // Value gets the concrete value stored at argument index i
-func (m *Message) Value(i int, t reflect.Type) (interface{}, error) {
+func (m *Request) Value(i int, t reflect.Type) (interface{}, error) {
 	arg, err := m.Argument(i, t)
 	if err != nil {
 		return nil, err
@@ -68,14 +48,14 @@ func (m *Message) Value(i int, t reflect.Type) (interface{}, error) {
 }
 
 // Argument loads an argument into a reflect.Value of type t
-func (m *Message) Argument(i int, t reflect.Type) (value reflect.Value, err error) {
-	if i < 0 || i >= len(m.Tuple) {
+func (m *Request) Argument(i int, t reflect.Type) (value reflect.Value, err error) {
+	if i < 0 || i >= len(m.Inputs) {
 		return value, fmt.Errorf("index out of range")
 	}
 
 	value = reflect.New(t)
 	element := value.Interface()
-	if err := msgpack.Unmarshal(m.Tuple[i], element); err != nil {
+	if err := msgpack.Unmarshal(m.Inputs[i], element); err != nil {
 		return value, err
 	}
 
@@ -83,13 +63,14 @@ func (m *Message) Argument(i int, t reflect.Type) (value reflect.Value, err erro
 }
 
 // NumArguments returns the length of the argument list
-func (m *Message) NumArguments() int {
-	return len(m.Tuple)
+func (m *Request) NumArguments() int {
+	return len(m.Inputs)
 }
 
 // Request is carrier of byte data. It does not assume any encoding types used for individual objects
 type Request struct {
-	Message
+	ID      string
+	Inputs  Tuple
 	Object  ObjectID
 	ReplyTo string
 	Method  string
@@ -97,14 +78,14 @@ type Request struct {
 
 // NewRequest creates a message that carries the given values
 func NewRequest(id, replyTo string, object ObjectID, method string, args ...interface{}) (*Request, error) {
-	base, err := NewMessage(id, args...)
-
+	inputs, err := newTuple(args...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Request{
-		Message: base,
+		ID:      id,
+		Inputs:  inputs,
 		Object:  object,
 		ReplyTo: replyTo,
 		Method:  method,
@@ -123,13 +104,13 @@ func (m *Request) Encode() ([]byte, error) {
 	return msgpack.Marshal(m)
 }
 
-// Return results from a call
-type Return struct {
+// Outputs results from a call
+type Outputs struct {
 	Tuple Tuple
 	Error RemoteError
 }
 
-func returnFromValues(values []reflect.Value) (Return, error) {
+func returnFromValues(values []reflect.Value) (Outputs, error) {
 	var objs []interface{}
 	for _, res := range values {
 		obj := res.Interface()
@@ -139,8 +120,8 @@ func returnFromValues(values []reflect.Value) (Return, error) {
 	return returnFromObjects(objs...)
 }
 
-func returnFromObjects(objs ...interface{}) (Return, error) {
-	var ret Return
+func returnFromObjects(objs ...interface{}) (Outputs, error) {
+	var ret Outputs
 	if len(objs) == 0 {
 		return ret, nil
 	}
@@ -162,7 +143,7 @@ func returnFromObjects(objs ...interface{}) (Return, error) {
 }
 
 // Unmarshal argument at position i into value
-func (t *Return) Unmarshal(i int, v interface{}) error {
+func (t *Outputs) Unmarshal(i int, v interface{}) error {
 	return t.Tuple.Unmarshal(i, v)
 }
 
@@ -171,7 +152,7 @@ type Response struct {
 	// ID of response
 	ID string
 	// Return is returned data by call
-	Return Return
+	Return Outputs
 	// Error here is any protocol error that is
 	// not related to error returned by the remote call
 	Error string
@@ -180,7 +161,7 @@ type Response struct {
 // NewResponse creates a response with id, and errMsg and return values
 // note that errMsg is the protocol level errors (no such method, unknown object, etc...)
 // errors returned by the service method itself should be encapsulated in the values
-func NewResponse(id string, ret Return, errMsg string) *Response {
+func NewResponse(id string, ret Outputs, errMsg string) *Response {
 	return &Response{ID: id, Return: ret, Error: errMsg}
 }
 
