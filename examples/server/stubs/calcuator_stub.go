@@ -32,7 +32,10 @@ func (s *CalculatorStub) Add(ctx context.Context, arg0 ...float64) (ret0 float64
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return
@@ -45,7 +48,10 @@ func (s *CalculatorStub) Avg(ctx context.Context, arg0 []float64) (ret0 float64)
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return
@@ -58,10 +64,13 @@ func (s *CalculatorStub) Divide(ctx context.Context, arg0 float64, arg1 float64)
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	ret1 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
-	ret1 = result.CallError()
 	return
 }
 
@@ -72,7 +81,10 @@ func (s *CalculatorStub) Pow(ctx context.Context, arg0 float64, arg1 float64) (r
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return

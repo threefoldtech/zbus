@@ -230,6 +230,9 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 	code = append(code,
 		jen.Id("result").Dot("PanicOnError").Call(),
 	)
+	loader := jen.Id("loader").Op(":=").Qual("github.com/threefoldtech/zbus", "Loader")
+	var vars []jen.Code
+
 	for i := 0; i != typ.NumOut(); i++ {
 		name := fmt.Sprintf("%s%d", ReturnPrefix, i)
 		out := typ.Out(i)
@@ -240,17 +243,25 @@ func getMethodBody(m *reflect.Method) []jen.Code {
 			)
 			continue
 		}
-		code = append(
-			code,
-			jen.If(jen.Id("err").Op(":=").Id("result").Dot("Unmarshal").
-				Call(
-					jen.Lit(i),
-					jen.Op("&").Id(name),
-				), jen.Id("err").Op("!=").Nil()).Block(
-				jen.Panic(jen.Id("err")),
-			),
+		vars = append(
+			vars,
+			jen.Op("&").Id(name).Op(","),
 		)
 	}
+
+	loader.Block(vars...)
+	code = append(
+		code,
+		loader,
+		jen.If(jen.Id("err").Op(":=").Id("result").Dot("Unmarshal").
+			Call(
+
+				jen.Op("&").Id("loader"),
+			), jen.Id("err").Op("!=").Nil()).Block(
+			jen.Panic(jen.Id("err")),
+		),
+	)
+
 	code = append(
 		code,
 		jen.Return(),

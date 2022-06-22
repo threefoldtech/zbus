@@ -27,8 +27,11 @@ func TestBaseServer(t *testing.T) {
 	ctx, shutdown := context.WithCancel(context.Background())
 	defer shutdown()
 	var result string
+	loader := Loader{
+		&result,
+	}
 	cb := func(request *Request, response *Response) {
-		if err := response.Unmarshal(0, &result); err != nil {
+		if err := response.Unmarshal(&loader); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -123,7 +126,7 @@ func TestBaseServerServiceError(t *testing.T) {
 	shutdown()
 	wg.Wait()
 
-	if ok := assert.Equal(t, &RemoteError{"we made an error"}, result); !ok {
+	if ok := assert.Equal(t, &CallError{"we made an error"}, result); !ok {
 		t.Error()
 	}
 }

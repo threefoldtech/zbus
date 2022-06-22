@@ -352,7 +352,10 @@ func (c *RedisClient) Status(ctx context.Context, module string) (Status, error)
 	}
 
 	var status Status
-	if err := response.Unmarshal(0, &status); err != nil {
+	loader := Loader{
+		&status,
+	}
+	if err := response.Unmarshal(&loader); err != nil {
 		return status, err
 	}
 

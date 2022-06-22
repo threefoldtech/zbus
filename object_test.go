@@ -83,13 +83,12 @@ func TestSurrogate(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 	var v string
-	err = result.Unmarshal(0, &v)
+	loader := Loader{
+		&v,
+	}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, "my-name", v)
 }
@@ -102,13 +101,12 @@ func TestSurrogateArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 	var v int
-	err = result.Unmarshal(0, &v)
+	loader := Loader{
+		&v,
+	}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, 30, v)
 }
@@ -122,18 +120,13 @@ func TestSurrogateTupleReturn(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 3); !ok {
-		t.Fatal()
-	}
-
 	var v0 int
-	err = result.Unmarshal(0, &v0)
-	require.NoError(t, err)
 	var v1 string
-	err = result.Unmarshal(1, &v1)
-	require.NoError(t, err)
 	var v2 string
-	err = result.Unmarshal(2, &v2)
+	loader := Loader{
+		&v0, &v1, &v2,
+	}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 
 	require.Equal(t, 10, v0)
@@ -152,22 +145,18 @@ func TestSurrogateTupleErrorReturn(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 2); !ok {
-		t.Fatal()
+	var v0 int
+	var v1 string
+	loader := Loader{
+		&v0, &v1,
 	}
 
-	require.NotNil(t, result.Error)
-
-	var v0 int
-	err = result.Unmarshal(0, &v0)
-	require.NoError(t, err)
-	var v1 string
-	err = result.Unmarshal(1, &v1)
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 
 	require.Equal(t, 10, v0)
 	require.Equal(t, "test", v1)
-
+	require.NotNil(t, result.Error)
 	require.Equal(t, "some error", result.Error.Message)
 }
 
@@ -180,14 +169,11 @@ func TestSurrogateVariadic(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 
 	var v string
-	err = result.Unmarshal(0, &v)
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, "hello world", v)
 }
@@ -201,14 +187,11 @@ func TestSurrogateVariadicWithLeadingArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 
 	var v string
-	err = result.Unmarshal(0, &v)
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, "hello/world", v)
 }
@@ -236,10 +219,6 @@ func TestSurrogateError(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.NotNil(t, result.Error)
 
 	require.NotEmpty(t, result.Error.Message)
@@ -260,14 +239,11 @@ func TestSurrogateRequest(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 
 	var v string
-	err = result.Unmarshal(0, &v)
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, "hello/world", v)
 
@@ -310,14 +286,13 @@ func TestSurrogateRequestEncoded(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Data, 1); !ok {
-		t.Fatal()
-	}
-
 	require.Nil(t, result.Error)
 
 	var v string
-	err = result.Unmarshal(0, &v)
+	loader := Loader{
+		&v,
+	}
+	err = result.Unmarshal(&loader)
 	require.NoError(t, err)
 	require.Equal(t, "hello/world", v)
 }

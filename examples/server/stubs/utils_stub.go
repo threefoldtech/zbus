@@ -2,8 +2,9 @@ package stubs
 
 import (
 	"context"
-	zbus "github.com/threefoldtech/zbus"
 	"time"
+
+	zbus "github.com/threefoldtech/zbus"
 )
 
 type UtilsStub struct {
@@ -30,7 +31,10 @@ func (s *UtilsStub) Capitalize(ctx context.Context, arg0 string) (ret0 string) {
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return
@@ -43,7 +47,10 @@ func (s *UtilsStub) Panic(ctx context.Context) (ret0 int) {
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
+	loader := zbus.Loader{
+		&ret0,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
 		panic(err)
 	}
 	return
@@ -57,6 +64,10 @@ func (s *UtilsStub) Sleep(ctx context.Context, arg0 time.Duration) (ret0 error) 
 	}
 	result.PanicOnError()
 	ret0 = result.CallError()
+	loader := zbus.Loader{}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
 	return
 }
 
@@ -91,15 +102,14 @@ func (s *UtilsStub) Tuple(ctx context.Context) (ret0 int, ret1 string, ret2 floa
 		panic(err)
 	}
 	result.PanicOnError()
-	if err := result.Unmarshal(0, &ret0); err != nil {
-		panic(err)
-	}
-	if err := result.Unmarshal(1, &ret1); err != nil {
-		panic(err)
-	}
-	if err := result.Unmarshal(2, &ret2); err != nil {
-		panic(err)
-	}
 	ret3 = result.CallError()
+	loader := zbus.Loader{
+		&ret0,
+		&ret1,
+		&ret2,
+	}
+	if err := result.Unmarshal(&loader); err != nil {
+		panic(err)
+	}
 	return
 }

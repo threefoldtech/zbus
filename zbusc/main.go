@@ -44,7 +44,6 @@ func run(options generation.Options, fqn, output string) error {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		os.Remove(tmpOutput.Name())
 		return err
 	}
 

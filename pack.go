@@ -104,10 +104,20 @@ func (m *Request) Encode() ([]byte, error) {
 	return msgpack.Marshal(m)
 }
 
+// CallError is a concrete type used to wrap all errors returned by services
+// for example, if a method `f` returns `error` the return.Error() is stored in a CallError struct
+type CallError struct {
+	Message string
+}
+
+func (r *CallError) Error() string {
+	return r.Message
+}
+
 // Output results from a call
 type Output struct {
-	Data  Tuple
-	Error *RemoteError
+	Data  []byte
+	Error *CallError
 }
 
 func returnFromValues(values []reflect.Value) (Output, error) {
@@ -129,22 +139,21 @@ func returnFromObjects(objs ...interface{}) (Output, error) {
 	trim := len(objs)
 	last := objs[len(objs)-1]
 	if err, ok := last.(error); ok {
-		ret.Error = &RemoteError{err.Error()}
+		ret.Error = &CallError{err.Error()}
 		trim = len(objs) - 1
 	}
 
-	tuple, err := newTuple(objs[:trim]...)
+	data, err := msgpack.Marshal(objs[:trim])
 	if err != nil {
-		return ret, err
+		return Output{}, err
 	}
-
-	ret.Data = tuple
+	ret.Data = data
 	return ret, nil
 }
 
 // Unmarshal argument at position i into value
-func (t *Output) Unmarshal(i int, v interface{}) error {
-	return t.Data.Unmarshal(i, v)
+func (t *Output) Unmarshal(v *Loader) error {
+	return msgpack.Unmarshal(t.Data, v)
 }
 
 // Response object
@@ -175,9 +184,11 @@ func (m *Response) PanicOnError() {
 	}
 }
 
+type Loader []interface{}
+
 // Unmarshal argument at position i into value
-func (m *Response) Unmarshal(i int, v interface{}) error {
-	return m.Output.Unmarshal(i, v)
+func (m *Response) Unmarshal(v *Loader) error {
+	return m.Output.Unmarshal(v)
 }
 
 func (m *Response) CallError() error {
@@ -186,7 +197,7 @@ func (m *Response) CallError() error {
 	}
 
 	if len(m.Output.Error.Message) != 0 {
-		return &RemoteError{m.Output.Error.Message}
+		return &CallError{m.Output.Error.Message}
 	}
 
 	return nil
