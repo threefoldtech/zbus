@@ -177,12 +177,12 @@ func (s *RedisServer) statusHandler(ctx context.Context) error {
 			continue
 		}
 
-		status := s.Status()
-		response, err := NewResponse(request.ID, "", status)
+		status, err := returnFromObjects(s.Status())
 		if err != nil {
-			log.Error().Err(err).Msg("failed to create response object")
+			log.Error().Err(err).Msg("failed to create response")
 			continue
 		}
+		response := NewResponse(request.ID, status, "")
 
 		// send response back
 		s.cb(request, response)

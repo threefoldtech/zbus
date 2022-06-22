@@ -90,7 +90,7 @@ func (s *BaseServer) call(request *Request) (ret Return, err error) {
 	s.m.RUnlock()
 
 	if !ok {
-		return nil, fmt.Errorf("unknown object")
+		return ret, fmt.Errorf("unknown object")
 	}
 
 	defer func() {
@@ -104,15 +104,14 @@ func (s *BaseServer) call(request *Request) (ret Return, err error) {
 	return surrogate.CallRequest(request)
 }
 
-func (s *BaseServer) process(request *Request) (*Response, error) {
-
+func (s *BaseServer) process(request *Request) *Response {
 	ret, err := s.call(request)
 	var msg string
 	if err != nil {
 		msg = err.Error()
 	}
 
-	return NewResponse(request.ID, msg, ret...)
+	return NewResponse(request.ID, ret, msg)
 }
 
 func (s *BaseServer) statusIn(id uint, request *Request) {
@@ -151,13 +150,8 @@ func (s *BaseServer) worker(ctx context.Context, id uint, wg *sync.WaitGroup, ch
 			}
 
 			s.statusIn(id, request)
-			response, err := s.process(request)
+			response := s.process(request)
 			s.statusOut(id)
-
-			if err != nil {
-				log.Error().Err(err).Msg("failed to create response object")
-				continue
-			}
 
 			cb(request, response)
 		case <-ctx.Done():

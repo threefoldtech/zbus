@@ -97,16 +97,14 @@ func TestBaseServerServiceError(t *testing.T) {
 
 	ctx, shutdown := context.WithCancel(context.Background())
 	defer shutdown()
-	var result RemoteError
+	var result error
 	cb := func(request *Request, response *Response) {
 
 		if response.Error != "" {
 			t.Fatal(response.Error)
 		}
 
-		if err := response.Unmarshal(1, &result); err != nil {
-			t.Fatal(err)
-		}
+		result = response.CallError()
 	}
 	var wg sync.WaitGroup
 	feed := s.Start(ctx, &wg, 1, cb)
@@ -125,7 +123,7 @@ func TestBaseServerServiceError(t *testing.T) {
 	shutdown()
 	wg.Wait()
 
-	if ok := assert.Equal(t, RemoteError{"we made an error"}, result); !ok {
+	if ok := assert.Equal(t, &RemoteError{"we made an error"}, result); !ok {
 		t.Error()
 	}
 }
