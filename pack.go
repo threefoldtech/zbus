@@ -104,13 +104,13 @@ func (m *Request) Encode() ([]byte, error) {
 	return msgpack.Marshal(m)
 }
 
-// Outputs results from a call
-type Outputs struct {
-	Tuple Tuple
-	Error RemoteError
+// Output results from a call
+type Output struct {
+	Data  Tuple
+	Error *RemoteError
 }
 
-func returnFromValues(values []reflect.Value) (Outputs, error) {
+func returnFromValues(values []reflect.Value) (Output, error) {
 	var objs []interface{}
 	for _, res := range values {
 		obj := res.Interface()
@@ -120,8 +120,8 @@ func returnFromValues(values []reflect.Value) (Outputs, error) {
 	return returnFromObjects(objs...)
 }
 
-func returnFromObjects(objs ...interface{}) (Outputs, error) {
-	var ret Outputs
+func returnFromObjects(objs ...interface{}) (Output, error) {
+	var ret Output
 	if len(objs) == 0 {
 		return ret, nil
 	}
@@ -129,7 +129,7 @@ func returnFromObjects(objs ...interface{}) (Outputs, error) {
 	trim := len(objs)
 	last := objs[len(objs)-1]
 	if err, ok := last.(error); ok {
-		ret.Error = RemoteError{err.Error()}
+		ret.Error = &RemoteError{err.Error()}
 		trim = len(objs) - 1
 	}
 
@@ -138,21 +138,21 @@ func returnFromObjects(objs ...interface{}) (Outputs, error) {
 		return ret, err
 	}
 
-	ret.Tuple = tuple
+	ret.Data = tuple
 	return ret, nil
 }
 
 // Unmarshal argument at position i into value
-func (t *Outputs) Unmarshal(i int, v interface{}) error {
-	return t.Tuple.Unmarshal(i, v)
+func (t *Output) Unmarshal(i int, v interface{}) error {
+	return t.Data.Unmarshal(i, v)
 }
 
 // Response object
 type Response struct {
 	// ID of response
 	ID string
-	// Return is returned data by call
-	Return Outputs
+	// Output is returned data by call
+	Output Output
 	// Error here is any protocol error that is
 	// not related to error returned by the remote call
 	Error string
@@ -161,8 +161,8 @@ type Response struct {
 // NewResponse creates a response with id, and errMsg and return values
 // note that errMsg is the protocol level errors (no such method, unknown object, etc...)
 // errors returned by the service method itself should be encapsulated in the values
-func NewResponse(id string, ret Outputs, errMsg string) *Response {
-	return &Response{ID: id, Return: ret, Error: errMsg}
+func NewResponse(id string, ret Output, errMsg string) *Response {
+	return &Response{ID: id, Output: ret, Error: errMsg}
 }
 
 // Panic causes this response to panic
@@ -177,12 +177,16 @@ func (m *Response) PanicOnError() {
 
 // Unmarshal argument at position i into value
 func (m *Response) Unmarshal(i int, v interface{}) error {
-	return m.Return.Unmarshal(i, v)
+	return m.Output.Unmarshal(i, v)
 }
 
 func (m *Response) CallError() error {
-	if len(m.Return.Error.Message) != 0 {
-		return &RemoteError{m.Return.Error.Message}
+	if m.Output.Error == nil {
+		return nil
+	}
+
+	if len(m.Output.Error.Message) != 0 {
+		return &RemoteError{m.Output.Error.Message}
 	}
 
 	return nil

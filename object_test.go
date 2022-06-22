@@ -83,10 +83,11 @@ func TestSurrogate(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
 
+	require.Nil(t, result.Error)
 	var v string
 	err = result.Unmarshal(0, &v)
 	require.NoError(t, err)
@@ -101,10 +102,11 @@ func TestSurrogateArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
 
+	require.Nil(t, result.Error)
 	var v int
 	err = result.Unmarshal(0, &v)
 	require.NoError(t, err)
@@ -120,7 +122,7 @@ func TestSurrogateTupleReturn(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 3); !ok {
+	if ok := assert.Len(t, result.Data, 3); !ok {
 		t.Fatal()
 	}
 
@@ -138,7 +140,7 @@ func TestSurrogateTupleReturn(t *testing.T) {
 	require.Equal(t, "hello", v1)
 	require.Equal(t, "world", v2)
 
-	require.Equal(t, "", result.Error.Message)
+	require.Nil(t, result.Error)
 }
 
 func TestSurrogateTupleErrorReturn(t *testing.T) {
@@ -150,9 +152,11 @@ func TestSurrogateTupleErrorReturn(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 2); !ok {
+	if ok := assert.Len(t, result.Data, 2); !ok {
 		t.Fatal()
 	}
+
+	require.NotNil(t, result.Error)
 
 	var v0 int
 	err = result.Unmarshal(0, &v0)
@@ -176,9 +180,11 @@ func TestSurrogateVariadic(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
+
+	require.Nil(t, result.Error)
 
 	var v string
 	err = result.Unmarshal(0, &v)
@@ -195,9 +201,11 @@ func TestSurrogateVariadicWithLeadingArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
+
+	require.Nil(t, result.Error)
 
 	var v string
 	err = result.Unmarshal(0, &v)
@@ -228,9 +236,11 @@ func TestSurrogateError(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
+
+	require.NotNil(t, result.Error)
 
 	require.NotEmpty(t, result.Error.Message)
 	require.Equal(t, "we made an error", result.Error.Message)
@@ -250,9 +260,11 @@ func TestSurrogateRequest(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
+
+	require.Nil(t, result.Error)
 
 	var v string
 	err = result.Unmarshal(0, &v)
@@ -298,9 +310,11 @@ func TestSurrogateRequestEncoded(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result.Tuple, 1); !ok {
+	if ok := assert.Len(t, result.Data, 1); !ok {
 		t.Fatal()
 	}
+
+	require.Nil(t, result.Error)
 
 	var v string
 	err = result.Unmarshal(0, &v)
