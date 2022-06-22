@@ -32,6 +32,31 @@ func (t Tuple) Unmarshal(i int, v interface{}) error {
 	return msgpack.Unmarshal(t[i], v)
 }
 
+// Request is carrier of byte data. It does not assume any encoding types used for individual objects
+type Request struct {
+	ID      string
+	Inputs  Tuple
+	Object  ObjectID
+	ReplyTo string
+	Method  string
+}
+
+// NewRequest creates a message that carries the given values
+func NewRequest(id, replyTo string, object ObjectID, method string, args ...interface{}) (*Request, error) {
+	inputs, err := newTuple(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Request{
+		ID:      id,
+		Inputs:  inputs,
+		Object:  object,
+		ReplyTo: replyTo,
+		Method:  method,
+	}, nil
+}
+
 // Unmarshal argument at position i into value
 func (m *Request) Unmarshal(i int, v interface{}) error {
 	return m.Inputs.Unmarshal(i, v)
@@ -65,31 +90,6 @@ func (m *Request) Argument(i int, t reflect.Type) (value reflect.Value, err erro
 // NumArguments returns the length of the argument list
 func (m *Request) NumArguments() int {
 	return len(m.Inputs)
-}
-
-// Request is carrier of byte data. It does not assume any encoding types used for individual objects
-type Request struct {
-	ID      string
-	Inputs  Tuple
-	Object  ObjectID
-	ReplyTo string
-	Method  string
-}
-
-// NewRequest creates a message that carries the given values
-func NewRequest(id, replyTo string, object ObjectID, method string, args ...interface{}) (*Request, error) {
-	inputs, err := newTuple(args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Request{
-		ID:      id,
-		Inputs:  inputs,
-		Object:  object,
-		ReplyTo: replyTo,
-		Method:  method,
-	}, nil
 }
 
 // LoadRequest from bytes
