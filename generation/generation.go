@@ -132,7 +132,7 @@ func generateStream(f *jen.File, name string, method *reflect.Method) {
 func getStreamBody(method *reflect.Method) func(*jen.Group) {
 	elem := method.Type.Out(0).Elem()
 	return func(g *jen.Group) {
-		g.Id("ch").Op(":=").Make(jen.Id("chan").Qual(elem.PkgPath(), elem.Name()))
+		g.Id("ch").Op(":=").Make(jen.Id("chan").Qual(elem.PkgPath(), elem.Name()), jen.Lit(1))
 
 		g.List(jen.Id("recv"), jen.Id("err")).Op(":=").Id("s").Dot("client").Dot("Stream").
 			Call(jen.Id("ctx"), jen.Id("s").Dot("module"), jen.Id("s").Dot("object"), jen.Lit(method.Name))
