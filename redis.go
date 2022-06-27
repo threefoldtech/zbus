@@ -177,12 +177,12 @@ func (s *RedisServer) statusHandler(ctx context.Context) error {
 			continue
 		}
 
-		status := s.Status()
-		response, err := NewResponse(request.ID, "", status)
+		status, err := returnFromObjects(nil, s.Status())
 		if err != nil {
-			log.Error().Err(err).Msg("failed to create response object")
+			log.Error().Err(err).Msg("failed to create response")
 			continue
 		}
+		response := NewResponse(request.ID, status, "")
 
 		// send response back
 		s.cb(request, response)
@@ -337,8 +337,8 @@ func (c *RedisClient) getResponse(con redis.Conn, id string) (*Response, error) 
 		return nil, err
 	}
 
-	if len(response.Error) != 0 {
-		return nil, fmt.Errorf(response.Error)
+	if response.Error != nil {
+		return nil, fmt.Errorf(*response.Error)
 	}
 
 	return response, nil
@@ -352,7 +352,10 @@ func (c *RedisClient) Status(ctx context.Context, module string) (Status, error)
 	}
 
 	var status Status
-	if err := response.Unmarshal(0, &status); err != nil {
+	loader := Loader{
+		&status,
+	}
+	if err := response.Unmarshal(&loader); err != nil {
 		return status, err
 	}
 

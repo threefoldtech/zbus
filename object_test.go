@@ -2,13 +2,13 @@ package zbus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type T struct {
@@ -33,6 +33,14 @@ func (t *T) Join(sep string, a ...string) string {
 
 func (t *T) MakeError() (int, error) {
 	return 0, fmt.Errorf("we made an error")
+}
+
+func (t *T) TupleError() (int, string, error) {
+	return 10, "test", fmt.Errorf("some error")
+}
+
+func (t *T) Tuple() (int, string, string) {
+	return 10, "hello", "world"
 }
 
 func (t *T) TikTok(ctx context.Context) <-chan int {
@@ -75,13 +83,14 @@ func TestSurrogate(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
-		t.Fatal()
+	require.Nil(t, result.Error)
+	var v string
+	loader := Loader{
+		&v,
 	}
-
-	if ok := assert.IsType(t, "", result[0]); !ok {
-		t.Error()
-	}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, "my-name", v)
 }
 
 func TestSurrogateArgs(t *testing.T) {
@@ -92,31 +101,81 @@ func TestSurrogateArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
-		t.Fatal()
+	require.Nil(t, result.Error)
+	var v int
+	loader := Loader{
+		&v,
 	}
-
-	if ok := assert.Equal(t, 30, result[0]); !ok {
-		t.Fatal()
-	}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, 30, v)
 }
 
-func TestSurrogateVariadic(t *testing.T) {
+func TestSurrogateTupleReturn(t *testing.T) {
 	s := NewSurrogate(&T{"my-name"})
 
-	result, err := s.Call("Concat", "hello", "world")
+	result, err := s.Call("Tuple")
 
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
+	var v0 int
+	var v1 string
+	var v2 string
+	loader := Loader{
+		&v0, &v1, &v2,
+	}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+
+	require.Equal(t, 10, v0)
+	require.Equal(t, "hello", v1)
+	require.Equal(t, "world", v2)
+
+	require.Nil(t, result.Error)
+}
+
+func TestSurrogateTupleErrorReturn(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	result, err := s.Call("TupleError")
+
+	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
 
-	if ok := assert.Equal(t, "helloworld", result[0]); !ok {
-		t.Error()
+	var v0 int
+	var v1 string
+	loader := Loader{
+		&v0, &v1,
 	}
+
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+
+	require.Equal(t, 10, v0)
+	require.Equal(t, "test", v1)
+	require.NotNil(t, result.Error)
+	require.Equal(t, "some error", result.Error.Message)
+}
+
+func TestSurrogateVariadic(t *testing.T) {
+	s := NewSurrogate(&T{"my-name"})
+
+	result, err := s.Call("Concat", "hello ", "world")
+
+	if ok := assert.NoError(t, err); !ok {
+		t.Fatal()
+	}
+
+	require.Nil(t, result.Error)
+
+	var v string
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, "hello world", v)
 }
 
 func TestSurrogateVariadicWithLeadingArgs(t *testing.T) {
@@ -128,13 +187,13 @@ func TestSurrogateVariadicWithLeadingArgs(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
-		t.Fatal()
-	}
+	require.Nil(t, result.Error)
 
-	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
-		t.Error()
-	}
+	var v string
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, "hello/world", v)
 }
 
 func TestSurrogateVariadicWithWrongTypes(t *testing.T) {
@@ -159,14 +218,15 @@ func TestSurrogateError(t *testing.T) {
 	if ok := assert.NoError(t, err); !ok {
 		t.Fatal()
 	}
+	require.NotNil(t, result.Error)
 
-	if ok := assert.Len(t, result, 2); !ok {
-		t.Fatal()
-	}
-
-	if ok := assert.IsType(t, errors.New(""), result[1]); !ok {
-		t.Error()
-	}
+	var v int = 10
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, 0, v)
+	require.NotEmpty(t, result.Error.Message)
+	require.Equal(t, "we made an error", result.Error.Message)
 
 }
 
@@ -183,13 +243,14 @@ func TestSurrogateRequest(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
-		t.Fatal()
-	}
+	require.Nil(t, result.Error)
 
-	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
-		t.Error()
-	}
+	var v string
+	loader := Loader{&v}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, "hello/world", v)
+
 }
 
 func TestSurrogateRequestWithWrongTypes(t *testing.T) {
@@ -229,13 +290,15 @@ func TestSurrogateRequestEncoded(t *testing.T) {
 		t.Fatal()
 	}
 
-	if ok := assert.Len(t, result, 1); !ok {
-		t.Fatal()
-	}
+	require.Nil(t, result.Error)
 
-	if ok := assert.Equal(t, "hello/world", result[0]); !ok {
-		t.Error()
+	var v string
+	loader := Loader{
+		&v,
 	}
+	err = result.Unmarshal(&loader)
+	require.NoError(t, err)
+	require.Equal(t, "hello/world", v)
 }
 
 func TestSurrogateStreamsList(t *testing.T) {

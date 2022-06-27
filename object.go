@@ -38,9 +38,6 @@ func ObjectIDFromString(id string) ObjectID {
 	return ObjectID{Name: parts[0], Version: Version(parts[1])}
 }
 
-// Return results from a call
-type Return []interface{}
-
 // Surrogate a wrapper around an object to support dynamic method calls
 type Surrogate struct {
 	value reflect.Value
@@ -74,15 +71,15 @@ func (s *Surrogate) isValid(method reflect.Type, args int) error {
 }
 
 // Call dynamically call a method
-func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
+func (s *Surrogate) Call(name string, args ...interface{}) (ret Output, err error) {
 	method, err := s.getMethod(name)
 	if err != nil {
-		return nil, err
+		return ret, err
 	}
 
 	methodType := method.Type()
 	if err := s.isValid(methodType, len(args)); err != nil {
-		return nil, err
+		return ret, err
 	}
 
 	expected := methodType.NumIn()
@@ -97,7 +94,7 @@ func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
 		expect := methodType.In(i)
 
 		if !got.AssignableTo(expect) {
-			return nil, fmt.Errorf("invalid argument type [%d] expecting %s got %s", i, expect, got)
+			return ret, fmt.Errorf("invalid argument type [%d] expecting %s got %s", i, expect, got)
 		}
 
 		values = append(values, reflect.ValueOf(arg))
@@ -109,7 +106,7 @@ func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
 			got := reflect.TypeOf(arg)
 
 			if !got.AssignableTo(expect) {
-				return nil, fmt.Errorf("invalid argument type [%d] expecting %s got %s", i+expected, expect, got)
+				return ret, fmt.Errorf("invalid argument type [%d] expecting %s got %s", i+expected, expect, got)
 			}
 
 			values = append(values, reflect.ValueOf(arg))
@@ -117,25 +114,21 @@ func (s *Surrogate) Call(name string, args ...interface{}) (Return, error) {
 	}
 
 	results := method.Call(values)
-	ret := make(Return, 0, len(results))
 
-	for _, res := range results {
-		ret = append(ret, res.Interface())
-	}
+	return returnFromValues(results)
 
-	return ret, nil
 }
 
 // CallRequest calls a method defined by request
-func (s *Surrogate) CallRequest(request *Request) (Return, error) {
+func (s *Surrogate) CallRequest(request *Request) (ret Output, err error) {
 	method, err := s.getMethod(request.Method)
 	if err != nil {
-		return nil, err
+		return ret, err
 	}
 
 	methodType := method.Type()
 	if err := s.isValid(methodType, request.NumArguments()); err != nil {
-		return nil, err
+		return ret, err
 	}
 
 	expected := methodType.NumIn()
@@ -144,12 +137,12 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 		expected--
 	}
 
-	values := make([]reflect.Value, 0, len(request.Arguments))
+	values := make([]reflect.Value, 0, len(request.Inputs))
 	for i := 0; i < expected; i++ {
 		expect := methodType.In(i)
 		value, err := request.Argument(i, expect)
 		if err != nil {
-			return nil, fmt.Errorf("invalid argument type [%d] expecting %s got", i, expect)
+			return ret, fmt.Errorf("invalid argument type [%d] expecting %s got", i, expect)
 		}
 
 		values = append(values, value)
@@ -160,7 +153,7 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 		for i := expected; i < request.NumArguments(); i++ {
 			value, err := request.Argument(i, expect)
 			if err != nil {
-				return nil, fmt.Errorf("invalid argument type [%d] expecting %s", i+expected, expect)
+				return ret, fmt.Errorf("invalid argument type [%d] expecting %s", i+expected, expect)
 			}
 
 			values = append(values, value)
@@ -169,13 +162,9 @@ func (s *Surrogate) CallRequest(request *Request) (Return, error) {
 	}
 
 	results := method.Call(values)
-	ret := make(Return, 0, len(results))
 
-	for _, res := range results {
-		ret = append(ret, res.Interface())
-	}
+	return returnFromValues(results)
 
-	return ret, nil
 }
 
 // Streams return all stream objects associated with this object

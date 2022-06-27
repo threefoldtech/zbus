@@ -18,7 +18,7 @@ func TestAdd(t *testing.T) {
 
 	calculator := stubs.NewCalculatorStub(client)
 
-	result := calculator.Add(1, 2, 3, 4)
+	result := calculator.Add(context.Background(), 1, 2, 3, 4)
 	assert.Equal(t, float64(10), result)
 }
 
@@ -30,7 +30,7 @@ func TestPow(t *testing.T) {
 
 	calculator := stubs.NewCalculatorStub(client)
 
-	result := calculator.Pow(2, 2)
+	result := calculator.Pow(context.Background(), 2, 2)
 	assert.Equal(t, float64(4), result)
 }
 
@@ -42,10 +42,10 @@ func TestDivide(t *testing.T) {
 
 	calculator := stubs.NewCalculatorStub(client)
 
-	_, err = calculator.Divide(2, 0)
+	_, err = calculator.Divide(context.Background(), 2, 0)
 	assert.Error(t, err, "division by 0 should return an error")
 
-	result, err := calculator.Divide(4, 2)
+	result, err := calculator.Divide(context.Background(), 4, 2)
 	assert.NoError(t, err)
 	assert.Equal(t, float64(2), result)
 }
@@ -58,7 +58,7 @@ func TestAvg(t *testing.T) {
 
 	calculator := stubs.NewCalculatorStub(client)
 
-	result := calculator.Avg([]float64{10, 10, 10})
+	result := calculator.Avg(context.Background(), []float64{10, 10, 10})
 	assert.Equal(t, float64(10), result)
 }
 
@@ -70,7 +70,7 @@ func TestCapitalize(t *testing.T) {
 
 	utils := stubs.NewUtilsStub(client)
 
-	result := utils.Capitalize("hello world")
+	result := utils.Capitalize(context.Background(), "hello world")
 	assert.Equal(t, result, "HELLO WORLD")
 }
 
