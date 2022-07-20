@@ -12,7 +12,7 @@ import (
 
 	log "github.com/rs/zerolog/log"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 const (
@@ -56,7 +56,7 @@ func newRedisPool(address string) (*redis.Pool, error) {
 
 			return nil
 		},
-		MaxActive:   10,
+		MaxActive:   100,
 		IdleTimeout: 1 * time.Minute,
 		Wait:        true,
 	}, nil
@@ -296,7 +296,10 @@ func (c *RedisClient) RequestContext(ctx context.Context, module string, object 
 		return nil, err
 	}
 
-	con := c.pool.Get()
+	con, err := c.pool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
 	defer con.Close()
 	queue := fmt.Sprintf("%s.%s", module, object)
 	if err := con.Send("RPUSH", queue, payload); err != nil {
@@ -364,9 +367,13 @@ func (c *RedisClient) Status(ctx context.Context, module string) (Status, error)
 
 // Stream listens to a stream of events from the server
 func (c *RedisClient) Stream(ctx context.Context, module string, object ObjectID, event string) (<-chan Event, error) {
-	con := c.pool.Get()
+	con, err := c.pool.GetContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	key := fmt.Sprintf("%s.%s.%s", module, object, event)
-	_, err := con.Do("SUBSCRIBE", key)
+	_, err = con.Do("SUBSCRIBE", key)
 
 	if err != nil {
 		con.Close()
