@@ -19,7 +19,8 @@ const (
 	Header = `// GENERATED CODE
 // --------------
 // please do not edit manually instead use the "zbusc" to regenerate
-	`
+
+`
 )
 
 // Generator builds a generator code
