@@ -249,3 +249,6 @@ Please check [specs](specs/readme.md) here
 It's very simple, check the [examples](examples)
 
 The [api.go](examples/server/api/api.go) have some `go generate` lines that runs the zbusc tool
+
+# Projects using zbus
+- [ZOS](https://github.com/threefoldtech/zos)
