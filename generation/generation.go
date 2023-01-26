@@ -3,6 +3,7 @@ package generation
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 
@@ -14,6 +15,11 @@ const (
 	ArgumentPrefix = "arg"
 	//ReturnPrefix return name prefix
 	ReturnPrefix = "ret"
+
+	Header = `// GENERATED CODE
+// --------------
+// please do not edit manually instead use the "zbusc" to regenerate
+	`
 )
 
 // Generator builds a generator code
@@ -38,7 +44,7 @@ func Generator(fqn string) (*jen.File, error) {
 	return f, nil
 }
 
-//Generate generates stubs for given interface
+// Generate generates stubs for given interface
 func Generate(opt Options, inf interface{}) error {
 	typ := reflect.TypeOf(inf)
 	if typ.Kind() != reflect.Ptr {
@@ -52,7 +58,11 @@ func Generate(opt Options, inf interface{}) error {
 		return fmt.Errorf("not an interface")
 	}
 
-	return generateStub(opt, elem).Save("/dev/stdout")
+	if _, err := fmt.Fprint(os.Stdout, Header); err != nil {
+		return err
+	}
+
+	return generateStub(opt, elem).Render(os.Stdout)
 }
 
 func generateStub(opt Options, typ reflect.Type) *jen.File {

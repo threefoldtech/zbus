@@ -18,8 +18,8 @@ func TestAdd(t *testing.T) {
 
 	calculator := stubs.NewCalculatorStub(client)
 
-	result := calculator.Add(context.Background(), 1, 2, 3, 4)
-	assert.Equal(t, float64(10), result)
+	result := calculator.Add(context.Background(), 1, 2)
+	assert.Equal(t, float64(3), result)
 }
 
 func TestPow(t *testing.T) {
