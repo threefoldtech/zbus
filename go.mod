@@ -11,7 +11,7 @@ require (
 	github.com/rs/zerolog v1.14.3
 	github.com/stretchr/testify v1.7.0
 	github.com/vmihailenco/msgpack v4.0.3+incompatible
-	golang.org/x/net v0.0.0-20190514140710-3ec191127204 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
